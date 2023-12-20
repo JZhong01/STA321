@@ -1,0 +1,212 @@
+---
+title: "Protein Dietary Trends Amidst Covid-19"
+author: "Joshua Zhong"
+date: "12/20/2023"
+output:
+ html_document:
+ toc: yes
+ toc_depth: 4
+ toc_float: yes
+ fig_width: 6
+ fig_caption: yes
+ number_sections: yes
+ theme: readable
+editor_options:
+ chunk_output_type: console
+---
+
+
+```{=html}
+
+<style type="text/css">
+
+/* Cascading Style Sheets (CSS) is a stylesheet language used to describe the presentation of a document written in HTML or XML. it is a simple mechanism for adding style (e.g., fonts, colors, spacing) to Web documents. */
+
+h1.title {  /* Title - font specifications of the report title */
+  font-size: 24px;
+  color: DarkRed;
+  text-align: center;
+  font-family: "Gill Sans", sans-serif;
+}
+h4.author { /* Header 4 - font specifications for authors  */
+  font-size: 20px;
+  font-family: system-ui;
+  color: DarkRed;
+  text-align: center;
+}
+h4.date { /* Header 4 - font specifications for the date  */
+  font-size: 18px;
+  font-family: system-ui;
+  color: DarkBlue;
+  text-align: center;
+}
+h1 { /* Header 1 - font specifications for level 1 section title  */
+    font-size: 22px;
+    font-family: "Times New Roman", Times, serif;
+    color: navy;
+    text-align: center;
+}
+h2 { /* Header 2 - font specifications for level 2 section title */
+    font-size: 20px;
+    font-family: "Times New Roman", Times, serif;
+    color: navy;
+    text-align: left;
+}
+
+h3 { /* Header 3 - font specifications of level 3 section title  */
+    font-size: 18px;
+    font-family: "Times New Roman", Times, serif;
+    color: navy;
+    text-align: left;
+}
+
+h4 { /* Header 4 - font specifications of level 4 section title  */
+    font-size: 18px;
+    font-family: "Times New Roman", Times, serif;
+    color: darkred;
+    text-align: left;
+}
+
+body { background-color:white; }
+
+.highlightme { background-color:yellow; }
+
+p { background-color:white; }
+
+</style>
+```
+
+```{r setup, include=FALSE}
+
+   protein = read.csv("https://raw.githubusercontent.com/pengdsci/sta321/main/ww02/w02-Protein_Supply_Quantity_Data.csv", 
+   header = TRUE)
+   
+   library(knitr)
+   library(leaflet)
+   library(EnvStats)
+   library(MASS)
+   library(phytools)
+   library(boot)
+
+
+# Specifications of outputs of code in code chunks
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,  
+    results = TRUE, comment = FALSE, options(digits = 2)   
+                      )   
+```
+
+
+# Introduction
+
+The COVID-19 pandemic created many shifts - from lifestyle changes to global health concerns. A key factor studied during this time is the dietary habits during the pandemic. A data set compiled from data collected by the United Nations Food and Agriculture Organization (FAO), country population counts from the Population Reference Bureau (PRB), and Covid-19 data compiled by the Johns Hopkins Center for Systems Science and Engineering (CSSE). This data set focuses specifically on the protein intake percentages over all countries around the world during the pandemic. 
+
+This data analysis aims to investigate an important facet of nutrition worldwide - protein intake from Animal Products. The significance of this study is that it allows us to examine which countries consume more animal-related foodstuffs than others as well as what the average amount of animal protein consumed is. This dietary data is very insightful as it can look into non-health concerns such as how wealthy the country is: wealthier countries are likely to consume more protein derived from animals since animal products are more expensive to produce. In addition, analysis of animal product intake can be studied versus Covid-19 cases and trends to see if any correlations between nutrition and health outcomes can be made.
+
+
+# Materials
+
+This data set was found on Kaggle and consists of 3 sections of data collected: protein intake, population count, and Covid-19 cases and other macro data. 
+
+### Protein intake data
+
+The food intake data was collected by the UN FAO during the Covid-19 pandemic. The data was collected through FAOSTAT questionnaires and distributed to member states' citizens in a random sample. This data set specifically pertains to an estimate of the percent of protein intake by every major category of protein source where each entry represents a UN member state. Categories of protein source range from Alcohol, Cereals, and Grains to Animals, Milk, and Eggs to Nuts, Spices, and Vegetables (both starchy and non-starchy). 
+
+This data analysis is specifically focused on Animal Products, which refers to all other animal-derived foodstuffs excluding those explicitly listed in the data set (animal fats, eggs, meat, milk excluding butter). 
+
+### Population data
+
+Population count per country was collected from data collected by the Population Reference Bureau. International data is generated through "current estimates based on recent censuses, official national data, or analyses conducted by national statistical offices, regional organizations, PRB, UN Population Division, or International programs of the U.S. Census Bureau" (PRB, 2023). 
+
+This data analysis is only concerned with the estimates for the population count per country. 
+
+### Covid-19 data
+
+The Covid-19 data was collected by the John Hopkins Coronavirus Resource Center. They worked 24/7 to constantly update with latest information provided by local and national governments to track confirmed cases, deaths, recovered persons, and active cases categorized by the province/state, country/region, and the time that the update was made. 
+
+
+# Methodology and Analysis
+
+Two confidence intervals are constructed at the 95% confidence level to analyze the mean percent of protein intake that comes from Animal Products. The first confidence interval was created using a t-distribution. The second confidence interval was created using the bootstrap method. 
+
+## T-interval
+
+A t-test was performed on the Animal Products variable in the protein data. The resulting 95% confidence interval is an imperfect estimation, however. 
+
+The t-test and its corresponding t-interval relies on many assumptions, such as homoscedasticity, independence, and normality of population distribution: some of which can't be satisfied without performing tests that validate said distributions. 
+
+## Bootstrapping 
+
+Bootstrapping is the process of resampling the data with replacement from the observed data to generate more statistics. This method of sampling a sample works because of the principle that a sample generally reflects the distribution of the population, thus providing a reasonable approximation of the population. While this method similarly has caveats, there are benefits to bootstrapping over using confidence intervals from t-tests. 
+
+Bootstrapping doesn't rely on assumptions of the distribution of the population data. In addition, the data is more versatile when dealing with data whose sample sizes are N < 30. This makes bootstrapping a more robust and an attractive alternative to other forms of calculating confidence intervals because parametric methods may not always be applicable. 
+
+
+# Results and Conclusions
+
+```{r Confidence Intervals, echo = FALSE}
+
+#Create t-test confidence interval
+
+ttestci <- t.test(protein$AnimalProducts)$conf.int
+
+
+#Bootstrap Sampling
+
+bootsamplemeans <- NULL
+
+for(i in 1:1000){
+  ithbootsample <- sample(protein$AnimalProducts, 170, replace = TRUE )
+  bootsamplemeans[i] <- mean(ithbootsample)
+}
+
+#Create bootstrap confidence interval
+
+bootstrapci <- quantile(bootsamplemeans, c(0.025, 0.975))
+
+
+
+```
+
+The 95% confidence interval for Animal Products, as derived through a t-test, is 95% CI[`r ttestci[1]`, `r ttestci[2]`]. 
+
+The 95% confidence interval for Animal Products using the bootstrap method is 95% CI[`r bootstrapci[1]`, `r bootstrapci[2]`].
+
+A plot of the bootstrap sampling distribution of the sample mean was also constructed. 
+
+```{r sample distribution}
+
+hist(bootsamplemeans, main = "Bootstrap Sampling Distribution")
+
+
+```
+
+The two aforementioned confidence intervals help to demonstrate why bootstrapping is so effective and how it works. The first confidence interval generated from the t-distribution, serving as a reference for the distribution's mean, is effectively mirrored by the second confidence interval derived through the bootstrap method. The 2.5th percentile of the bootstrap confidence interval is only off by `r bootstrapci[1] - ttestci[1]` and the 97.5th percentile is only off by `r bootstrapci[2] - ttestci[2]`, demonstrating that the bootstrap confidence interval faithfully mirrors that of the t-test confidence interval. 
+
+In addition, bootstrapping created a normally distributed sample distribution, emphasizing the benefit of using bootstrapping over the t-distribution that no assumptions need to be made about the population distribution.
+
+
+# General Discussion
+
+These results reinforce that 1) bootstrapping is a valid way to create a sampling distribution and 2) bootstrapping has benefits over other 'conventional' methods of sampling. 
+
+We see from the results that bootstrapping has created a distribution faithful to the distribution from the conventional t-distribution, with the added benefit of not requiring assumptions to be made about the population distribution. This allows for bootstrapping to be a valid way to sample in scenarios where the population distribution is non-parametric or whose normality can't be ascertained. 
+
+There are potential limitations to these results, however. As discussed previously, bootstrapping is useful in scenarios where the sample size is small (generally considered when sample size N < 30). The experiment ran 1000 iterations of a sample size of 170. With a sample size as large as N = 170, t-distribution could be assumed to be normally distributed regardless of the underlying characteristics in the data (unless otherwise explicitly stated to be non-parametric). However, the principle still stands that the bootstrap method is an effective and valid way to sample. 
+
+
+# References
+
+Ren, M.(2020). *Protein_Supply_Quantity_Data.csv*[Data set]. https://www.kaggle.com/datasets/mariaren/covid19-healthy-diet-dataset?select=Protein_Supply_Quantity_Data.csv  
+
+
+FAO. (2023). *Data collection*. Food and Agriculture Organization of the United Nations. https://www.fao.org/food-agriculture-statistics/data-collection/en/ 
+
+PRB. (2023). *International Data*. PRB. https://www.prb.org/international/indicator/population/snapshot 
+
+Dong E, Du H, Gardner L. An interactive web-based dashboard to track COVID-19 in real time. Lancet Inf Dis. 20(5):533-534. doi: 10.1016/S1473-3099(20)30120-1.
+
+
+
+
+
+
