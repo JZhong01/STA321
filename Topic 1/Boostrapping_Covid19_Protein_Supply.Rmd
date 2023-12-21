@@ -78,7 +78,7 @@ p { background-color:white; }
 
 ```{r setup, include=FALSE}
 
-   protein = read.csv("https://raw.githubusercontent.com/pengdsci/sta321/main/ww02/w02-Protein_Supply_Quantity_Data.csv", 
+   protein = read.csv("https://raw.githubusercontent.com/JZhong01/STA321/main/Topic%201/Protein_Supply_Quantity_Data.csv", 
    header = TRUE)
    
    library(knitr)
@@ -147,7 +147,7 @@ Bootstrapping doesn't rely on assumptions of the distribution of the population 
 
 #Create t-test confidence interval
 
-ttestci <- t.test(protein$AnimalProducts)$conf.int
+ttestci <- t.test(protein$Animal.Products)$conf.int
 
 
 #Bootstrap Sampling
@@ -155,7 +155,7 @@ ttestci <- t.test(protein$AnimalProducts)$conf.int
 bootsamplemeans <- NULL
 
 for(i in 1:1000){
-  ithbootsample <- sample(protein$AnimalProducts, 170, replace = TRUE )
+  ithbootsample <- sample(protein$Animal.Products, 170, replace = TRUE )
   bootsamplemeans[i] <- mean(ithbootsample)
 }
 
