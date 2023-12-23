@@ -1,0 +1,242 @@
+---
+title: "An analysis of factors affecting California Housing Prices"
+author: "Joshua Zhong"
+date: "12/22/2023"
+output:
+ html_document:
+ toc: yes
+ toc_depth: 4
+ toc_float: yes
+ fig_width: 6
+ fig_caption: yes
+ number_sections: yes
+ theme: readable
+editor_options:
+ chunk_output_type: console
+---
+
+
+```{=html}
+
+<style type="text/css">
+
+/* Cascading Style Sheets (CSS) is a stylesheet language used to describe the presentation of a document written in HTML or XML. it is a simple mechanism for adding style (e.g., fonts, colors, spacing) to Web documents. */
+
+h1.title {  /* Title - font specifications of the report title */
+  font-size: 24px;
+  color: DarkRed;
+  text-align: center;
+  font-family: "Gill Sans", sans-serif;
+}
+h4.author { /* Header 4 - font specifications for authors  */
+  font-size: 20px;
+  font-family: system-ui;
+  color: DarkRed;
+  text-align: center;
+}
+h4.date { /* Header 4 - font specifications for the date  */
+  font-size: 18px;
+  font-family: system-ui;
+  color: DarkBlue;
+  text-align: center;
+}
+h1 { /* Header 1 - font specifications for level 1 section title  */
+    font-size: 22px;
+    font-family: "Times New Roman", Times, serif;
+    color: navy;
+    text-align: center;
+}
+h2 { /* Header 2 - font specifications for level 2 section title */
+    font-size: 20px;
+    font-family: "Times New Roman", Times, serif;
+    color: navy;
+    text-align: left;
+}
+
+h3 { /* Header 3 - font specifications of level 3 section title  */
+    font-size: 18px;
+    font-family: "Times New Roman", Times, serif;
+    color: navy;
+    text-align: left;
+}
+
+h4 { /* Header 4 - font specifications of level 4 section title  */
+    font-size: 18px;
+    font-family: "Times New Roman", Times, serif;
+    color: darkred;
+    text-align: left;
+}
+
+body { background-color:white; }
+
+.highlightme { background-color:yellow; }
+
+p { background-color:white; }
+
+</style>
+```
+
+```{r setup, include=FALSE}
+
+   cahouses = read.csv("https://raw.githubusercontent.com/JZhong01/STA321/main/Topic%202/ca-housing-price.csv", 
+   header = TRUE)
+   
+
+
+   library(knitr)
+   library(leaflet)
+   library(EnvStats)
+   library(MASS)
+   library(phytools)
+   library(boot)
+   library(psych)
+
+
+# Specifications of outputs of code in code chunks
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,  
+    results = TRUE, comment = FALSE, options(digits = 2)   
+                      )   
+```
+
+
+# Introduction
+
+The data set used in the project includes information gathered from various block groups in California during the 1990 Census. Each block group comprises an average of 1425.5 individuals in a geographically compact area. The data set comprises of 20640 observations of 9 dependent variables and one independent variable, median house value, that is depicted as ln(median house value). The factors in this data set encompasses information on key variables such as geographical location, housing characteristics, demographic details, and economic indicators. 
+
+The primary objective of this analysis is to discern patterns and relationships within the data set, with a focus on understanding the factors influencing median house values. Delving into the exploration and analysis of this data set, pair-wise scatter plots will be utilized to determine the most crucial factor affecting median housing prices and the subsequent application of simple linear regression with that factor to discover the underlying dynamics of the housing market in California.
+
+
+# Materials
+
+This data set was found on Kaggle and consists of data, originally published in the 1997 edition of the *Statistics and Probability Letters* journal, built on the 1990 California census data. 
+
+### California Housing Data set
+
+The U.S. Census Bureau uses the block group as the smallest geographical unit that it publishes data in (typically consisting of 600 to 3000 people). Each observation in the data set represents one block group. 
+
+The data set is slightly modified from the original. 207 values were removed from the total_bedrooms variable because of missing or nonsensical values. The categorical variable, oceanProximity, was also added as a rough indicator of whether each block group was near the ocean, the Bay area, inland, or on an island. 
+
+
+# Methodology and Analysis
+
+The data set contains 9 independent variables and 1 dependent variable. This analysis is primarily concerned with the factor that best explains the response using a simple linear regression. As such, pair wise scatter plots will be conducted to find correlation between independent variables with median housing price. If violations of conditions for simple linear regression are present, the bootstrap method will be conducted to alleviate possible issues. 
+
+## Pair-wise Scatter Plot
+
+This method is used to identify the independent variable that best correlates with the response variable. Categorical and ordinal variables are excluded as this method does not apply to them. Variables that are logically correlated with each other were also excluded from the final scatter plot. Longitude, latitude, and ocean proximity were grouped together. Total rooms, total bedrooms, population, and households were also grouped together. As a result, 4 variables were in the final scatter plot: Median housing age, total bedrooms, median income, and response median house price.  
+
+
+## Bootstrapping
+
+Bootstrapping, a statistical technique akin to creating a multitude of data universes through resampling with replacement, proves to be a potent tool in unraveling the intricacies of simple linear regression. This resampling method sidesteps the rigid assumptions about population distribution and is particularly well-suited for scenarios with small sample sizes. 
+
+In the realm of simple linear regression, bootstrapping is invaluable, providing reliable estimates and confidence intervals without the constraints imposed by traditional parametric methods. 
+
+
+
+# Results and Conclusions
+
+### Pairwise Scatterplot
+
+A simple pairwise scatter plot was made to show the association between variables with the response to choose which variable to use in the simple linear regression. As mentioned prior, independent variables that correlate with one another were removed since they likely have similar correlations to the response variable. 
+
+```{r Pairwise scatterplot, echo = FALSE}
+
+pairs.panels(cahouses[, c(3,5,8,9)], pch=21, main="Pair-wise Scatter Plot of r numerical variables")
+
+```
+
+In this pairwise plot, median income has the largest correlation with median house value, so that is the variable the simple linear regression will be focused on. 
+
+### Check Assumptions
+
+In order to perform a parametric model, there are conditions that must be satisfied. Normality of the residuals, constant variance, linearity, and no influential points.  
+
+```{r Assumptions, echo = FALSE}
+
+med_income <- cahouses$median_income
+med_price <- cahouses$median_house_value
+
+# Call lm() on price vs income
+parametric_model <- lm(med_price~med_income)
+
+
+#Plots to check for conditions
+par(mfrow = c(2,2))
+plot(parametric_model)
+
+```
+
+The Versus Fits plot mostly satisfies the condition of linearity, with a relatively concerning straight line of residual vs fits plotted. Normality condition is strongly violated with the Q-Q plot not showing a straight trend. The scale-location plot shows a concerning distribution, leading to constant variance being violated. There are no significant influential points. As a result, a parametric model is not a good model to use for these data and a bootstrap regression will be conducted. 
+
+### Bootstrap Regression
+
+A bootstrap regression is performed by repeatedly bootstrap sampling and performing a regression model on each sample. As a result, a distribution and a 95% confidence interval of the these regression models can be made. 
+
+
+```{r Bootstrap Regression Distribution, echo = FALSE}
+  
+beta0 <- numeric(1000)
+beta1 <- numeric(1000)
+
+#Create vectors same count as income observations
+boot_vector <- 1:length(med_price) 
+
+#1000 bootstrap replications
+for(i in 1:1000){
+  #Sample N for a bootstrap sample
+  cur_boot_sample <- sample(boot_vector, length(med_price), replace = TRUE)
+  cur_boot_price <- med_price[cur_boot_sample]
+  cur_boot_income <- med_income[cur_boot_sample]
+  #Perform regression on that sample
+  boot_reg <- lm(cur_boot_price ~ cur_boot_income)
+  beta0[i] <- boot_reg$coefficients[1] 
+  beta1[i] <- boot_reg$coefficients[2]  
+  
+  
+  
+}
+
+#Plot Beta0 and Beta1 distributions
+par(mfrow = c(1,2))
+hist(beta0, main = "Bootstrap Sampled Intercepts", xlab = "Bootstrap Estimated Beta0s")
+hist(beta1, main = "Bootstrap Sampled Slopes", xlab = "Bootstrap Estimated Beta1s")
+
+```
+
+1000 replications of N = 20640 sampled bootstrap distributions were created. Plotted out, the general shape appears to be normal. 
+
+
+```{r Bootstrap Confidence Intervals, echo = FALSE}
+
+  beta0_ci <- quantile(beta0, c(0.025, 0.975))
+  beta1_ci <- quantile(beta1, c(0.025, 0.975))
+  
+```
+
+The 95% bootstrap confidence interval for the slope is 95% CI[`r beta1_ci[1]`, `r beta1_ci[2]`]. Since 0 is not in the confidence interval, the regression indicates that there is a relationship between median income and median house price per block group. They are statistically correlated.  
+
+In this scenario, bootstrapping created a distribution to complete a simple linear regression since the assumptions about the residuals were not met. In this way, bootstrap simple linear regression is a non-parametric way to perform and validate the correlation between the explanatory and response variables. 
+
+
+# General Discussion
+
+Bootstrapping in the context of simple linear regression offers a robust alternative, particularly when confronted with potential violations of parametric assumptions. In instances of serious model assumption breaches and a sample size that isn't overly restricted, bootstrap confidence intervals for regression coefficients emerge as a more dependable option compared to parametric p-values, as bootstrapping is inherently non-parametric. 
+
+Notably, even when the regression function takes a misspecified form, bootstrap confidence intervals remain valid. The benefits of bootstrapping are its resilience to small sample sizes, its ability to accommodate misspecified models, and its capacity to navigate uncertainties in parametric assumptions. This is a versatile approach for robust inference in the realm of linear regression.
+
+
+# References
+
+Wang, H.(2018). *housing.csv*[Data set]. https://www.kaggle.com/code/harrywang/housing-price-prediction/input?select=housing.csv
+
+
+O'Reilly Media (2017). *California Housing*. GitHub. https://github.com/ageron/handson-ml/blob/master/datasets/housing/housing.csv
+
+
+
+
+
+
+
+
