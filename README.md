@@ -1,5 +1,3 @@
 # STA321
-Hello World
-"A line I wrote on my local computer and pushed online" 
 
-"This is a line from RStudio"
+GitHub repository for my STA321 course during Winter 2023/2024 - raw dataset files and project files uploaded here. 
