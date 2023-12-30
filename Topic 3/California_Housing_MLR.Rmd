@@ -1,0 +1,565 @@
+---
+title: "Modeling California Housing Markets using Multiple Linear Regression"
+author: "Joshua Zhong"
+date: "12/28/2023"
+output:
+ html_document:
+ toc: yes
+ toc_depth: 4
+ toc_float: yes
+ fig_width: 6
+ fig_caption: yes
+ number_sections: yes
+ theme: readable
+editor_options:
+ chunk_output_type: console
+---
+
+
+```{=html}
+
+<style type="text/css">
+
+/* Cascading Style Sheets (CSS) is a stylesheet language used to describe the presentation of a document written in HTML or XML. it is a simple mechanism for adding style (e.g., fonts, colors, spacing) to Web documents. */
+
+h1.title {  /* Title - font specifications of the report title */
+  font-size: 24px;
+  color: DarkRed;
+  text-align: center;
+  font-family: "Gill Sans", sans-serif;
+}
+h4.author { /* Header 4 - font specifications for authors  */
+  font-size: 20px;
+  font-family: system-ui;
+  color: DarkRed;
+  text-align: center;
+}
+h4.date { /* Header 4 - font specifications for the date  */
+  font-size: 18px;
+  font-family: system-ui;
+  color: DarkBlue;
+  text-align: center;
+}
+h1 { /* Header 1 - font specifications for level 1 section title  */
+    font-size: 22px;
+    font-family: "Times New Roman", Times, serif;
+    color: navy;
+    text-align: left;
+}
+h2 { /* Header 2 - font specifications for level 2 section title */
+    font-size: 20px;
+    font-family: "Times New Roman", Times, serif;
+    color: navy;
+    text-align: left;
+}
+
+h3 { /* Header 3 - font specifications of level 3 section title  */
+    font-size: 18px;
+    font-family: "Times New Roman", Times, serif;
+    color: navy;
+    text-align: left;
+}
+
+h4 { /* Header 4 - font specifications of level 4 section title  */
+    font-size: 18px;
+    font-family: "Times New Roman", Times, serif;
+    color: darkred;
+    text-align: left;
+}
+
+body { background-color:white; }
+
+.highlightme { background-color:yellow; }
+
+p { background-color:white; }
+
+</style>
+```
+
+```{r setup, include=FALSE}
+
+   cahouses = read.csv("https://raw.githubusercontent.com/JZhong01/STA321/main/Topic%203/ca-housing-price.csv", 
+   header = TRUE)
+   
+  options(scipen = 2)
+
+   library(knitr)
+   library(leaflet)
+   library(EnvStats)
+   library(MASS)
+   library(phytools)
+   library(boot)
+   library(psych)
+   library(car)
+   library(dplyr)
+   library(kableExtra)
+
+# Specifications of outputs of code in code chunks
+knitr::opts_chunk$set(
+	echo = TRUE,
+	message = FALSE,
+	warning = FALSE,
+	comment = FALSE,
+	results = TRUE, 
+	digits = 4
+)
+   
+```
+
+
+# 1 Data set Description
+
+The data set was found on Kaggle. It includes information gathered from various block groups in California during the 1990 Census. The U.S. Census Bureau uses the block group as the smallest geographical unit, typically consisting of 600 to 3000 people. Each observation in the data set represents one block group and comprises an average of 1425.5 individuals in a geographically compact area. 
+
+The data set contains 20640 observations of 9 dependent variables and one independent variable: median house value. The link to the raw CSV file in posted on GitHub:  https://raw.githubusercontent.com/JZhong01/STA321/main/Topic%203/ca-housing-price.csv.
+
+- Longitude(X1): How far west block group is located from prime meridian
+- Latitude(X2): How far north block group is located from equator
+- HousingMedianAge(X3): Median age of house within block group
+- TotalRooms(X4): Total number of rooms in block 
+- TotalBedrooms(X5): Total number of bedrooms in block
+- Population(X6): Total number of residents in block group
+- Households(X7): Total number of households, defined as a group of people residing within a home unit
+- MedianIncome(X8): Median income, in thousands of US Dollars, for households within a block group
+- MedianHouseValue(Y): Median house value, in US Dollars, in a block
+- OceanProximity(X9): Location of the house to an ocean or sea, displayed as a categorical variable
+
+
+# 2 Research Question
+
+The primary objective of this analysis is to identify the association between median house value of California houses and key predictor variables that describe geographical location, housing characteristics, demographic details, and economic indicators of block groups and their inhabitants. 
+
+
+# 3 Exploratory Data Analysis
+
+The original data set contains 9 independent variables and 1 dependent variable. However, some modifications need to be made as not all the variables are useful in describing the association with median house values. 
+
+
+## 3.1 Geographic Location
+
+There are 3 variables that describe geographic locations of houses: longitude, latitude, and ocean_proximity. A plot was first created that plots house locations by longitude and latitude. 
+
+```{r long and lat}
+
+## Set echo to false because the code in this section is ugly
+
+cahouses = read.csv("https://raw.githubusercontent.com/JZhong01/STA321/main/Topic%203/ca-housing-price.csv", 
+   header = TRUE)
+
+lon <- cahouses$longitude
+lat <- cahouses$latitude
+
+par(asp = 1)
+plot(lon, lat, main = "CA houses in 1990 Census", xlab = "Longitude", ylab = "Latitude")
+
+```
+
+The longitude and latitude values plotted depict precise values that describe the data in terms of geographical location. 
+
+Next, 5 histograms were plotted based off what value each observation had for OceanProximity. 
+
+```{r ocean proximity, echo = FALSE}
+
+nearbay <- filter(cahouses, ocean_proximity == "NEAR BAY")
+hourfromocean <- filter(cahouses, ocean_proximity == "<1H OCEAN")
+inland <- filter(cahouses, ocean_proximity == "INLAND")
+nearocean <- filter(cahouses, ocean_proximity == "NEAR OCEAN")
+island <- filter(cahouses, ocean_proximity == "ISLAND")
+
+par(mfrow = c(2,3))
+hist(nearbay$median_house_value, xlab = "Median House Value", main = "NEAR BAY" )
+
+hist(hourfromocean$median_house_value, xlab = "Median House Value", main = "<1H FROM OCEAN", breaks = 20)
+
+hist(inland$median_house_value, xlab = "Median House Value", main = "INLAND" )
+
+hist(nearocean$median_house_value, xlab = "Median House Value", main = "NEAR OCEAN" )
+
+hist(island$median_house_value, xlab = "Median House Value", main = "ISLAND" )
+
+
+```
+
+As depicted above, despite there being 5 unique values for OceanProximity, <1H from ocean, Near ocean, and Near bay all have distributions that closely resemble one another. 
+
+As a result, a decision was made to exclude OceanProximity as a predictor in the first candidate model because it may not strongly indicate association of geographical location to house price. Another reason why OceanProximity was excluded was because possible collinearity may be present between ocean proximity and the longitude and latitude variables; since this may be of concern, longitude and latitude were kept in the model because they are more precise and thus better indicators for the model. 
+
+
+## 3.2 Median Income
+
+There is a discrepancy in units for median income of households and median house value. The units for median income are in thousands of US Dollars whereas the units for median house value are in US Dollars. As such, unit conversion for median income was performed to convert units to US Dollars to be more consistent. 
+
+```{r convert median income}
+
+cahouses$median_income <- cahouses$median_income * 10000
+
+```
+
+
+# 4 Linear Model
+
+The initial full model will consist of 8 predictor variables (all the original ones minus OceanProximity and with the updated MedianIncome). The linear model is represented as the following equation: 
+
+\(MedianHouseValue = \beta_0 + \beta_1 * Longitude + \beta_2 * Latitude + \beta_3 * HousingMedianAge + \beta_4 * TotalRooms + \beta_5 * TotalBedrooms + \beta_6 * Population + \beta_7 * Households + \beta_8 * MedianIncome + \epsilon\)
+
+
+where each beta represents a coefficient in the linear model and epsilon represents the residuals or error value. 
+
+## 4.1 Initial Model
+
+By running lm(), the linear model of the initial model can be run and output coefficients for the model. 
+
+```{r initial model}
+
+initial_model = lm(median_house_value ~. - ocean_proximity, data = cahouses)
+
+
+##I'm unsure how to get P-value to display something other than just 0, setting digits = 2 didn't work
+kable(summary(initial_model)$coef, caption = "Statistics of Regression Coefficients", digits = 2, scientific = TRUE)
+
+
+
+
+alteredcoef_model <- format(initial_model$coefficients, scientific = FALSE, digits = 2) # Round to 2 decimal points
+
+```
+
+
+Adding the coefficients to the model gives us the following: 
+
+MedianHouseValue = `r alteredcoef_model[1]` + `r alteredcoef_model[2]` * Longitude + `r alteredcoef_model[3]` * Latitude + `r alteredcoef_model[4]` * HousingMedianAge + 
+`r alteredcoef_model[5]` * TotalRooms + 
+`r alteredcoef_model[6]` * TotalBedrooms +
+`r alteredcoef_model[7]` * Population + 
+`r alteredcoef_model[8]` * Households + 
+`r alteredcoef_model[9]` * MedianIncome + \(\epsilon\).
+
+
+## 4.2 Residual Analysis
+
+4 diagnostic plots are run to see if assumptions about residuals are met. The Versus Fits plot checks for linearity of residuals, Q-Q plot checks for normal distribution of residuals, Scale-Location checks for constant variance of residuals, and the Residuals vs Leverage plot checks for influential points.  
+
+```{r residual analysis}
+
+par(mfrow = c(2,2))
+plot(initial_model)
+
+```
+
+Based off the residual plots, there are some minor violations:
+
+- Observation #15361 is an influential point and can be seen affecting the linearity of the model. 
+- Variance of the residuals is not constant
+- The QQ plot indicates a slightly non-normal distribution. Mainly observation 15361 is affecting the plot's distribution. 
+
+
+## 4.3 Variance Inflation Factors
+
+VIF indices were constructed to detect issues with multicollinearity
+
+```{r vifs}
+
+vif(initial_model)
+
+```
+
+The model displays significant issues with multicollinearity. No multicollinearity is present with VIF indices close to 1, and there is concern if the indices are 10 or larger. Considering that 3 indices are above 10 and 2 are close to 10, this model may need adjustments to balance out this issue. 
+
+
+
+# 5 Bootstrap Confidence Intervals
+
+Since parametric assumptions cannot be made for the underlying distribution, bootstrap confidence intervals are used to make inferences. 
+
+```{r Bootstrap Regression Distribution, echo = FALSE}
+  
+beta0 <- numeric(1000)
+beta1 <- numeric(1000)
+beta2 <- numeric(1000)
+beta3 <- numeric(1000)
+beta4 <- numeric(1000)
+beta5 <- numeric(1000)
+beta6 <- numeric(1000)
+beta7 <- numeric(1000)
+beta8 <- numeric(1000)
+
+#Create vectors same count as income observations
+boot_vector <- 1:length(cahouses$median_income) 
+
+#1000 bootstrap replications
+for(i in 1:1000){
+  #Sample N for a bootstrap sample
+  cur_boot_sample <- sample(boot_vector, nrow(cahouses), replace = TRUE)
+  cur_boot_data <- cahouses[cur_boot_sample,]
+  
+
+  #Perform regression on that sample
+  boot_reg <- lm(median_house_value~. - ocean_proximity, data = cur_boot_data)
+  
+  
+  
+  #Store coefficients
+  beta0[i] <- boot_reg$coefficients[1] 
+  beta1[i] <- boot_reg$coefficients[2]  
+  beta2[i] <- boot_reg$coefficients[3]
+  beta3[i] <- boot_reg$coefficients[4] 
+  beta4[i] <- boot_reg$coefficients[5]  
+  beta5[i] <- boot_reg$coefficients[6]
+  beta6[i] <- boot_reg$coefficients[7] 
+  beta7[i] <- boot_reg$coefficients[8]  
+  beta8[i] <- boot_reg$coefficients[9]
+  
+  
+}
+
+#Plot Beta distributions (Commented out to keep runtime low)
+
+#hist(beta0, main = "Bootstrap Sampled Intercepts", xlab = "Bootstrap Estimated Beta0s")
+#hist(beta1, main = "Bootstrap Sampled Slopes", xlab = "Bootstrap Estimated Beta1s")
+#hist(beta2, main = "Bootstrap Sampled Intercepts", xlab = "Bootstrap Estimated Beta2s")
+#hist(beta3, main = "Bootstrap Sampled Slopes", xlab = "Bootstrap Estimated Beta3s")
+#hist(beta4, main = "Bootstrap Sampled Intercepts", xlab = "Bootstrap Estimated Beta4s")
+#hist(beta5, main = "Bootstrap Sampled Slopes", xlab = "Bootstrap Estimated Beta5s")
+#hist(beta6, main = "Bootstrap Sampled Intercepts", xlab = "Bootstrap Estimated Beta6s")
+#hist(beta7, main = "Bootstrap Sampled Slopes", xlab = "Bootstrap Estimated Beta7s")
+#hist(beta8, main = "Bootstrap Sampled Intercepts", xlab = "Bootstrap Estimated Beta8s")
+
+
+```
+
+
+After conducting 1000 replications of bootstrap samples, 95% confidence intervals were conducted on every beta coefficient in the linear model. 
+
+```{r Bootstrap Confidence Intervals, echo = FALSE}
+
+  beta0_ci <- quantile(beta0, c(0.025, 0.975), digits = 2)
+  beta1_ci <- quantile(beta1, c(0.025, 0.975), digits = 2)
+  beta2_ci <- quantile(beta2, c(0.025, 0.975), digits = 2)
+  beta3_ci <- quantile(beta3, c(0.025, 0.975), digits = 2)
+  beta4_ci <- quantile(beta4, c(0.025, 0.975), digits = 2)
+  beta5_ci <- quantile(beta5, c(0.025, 0.975), digits = 2)
+  beta6_ci <- quantile(beta6, c(0.025, 0.975), digits = 2)
+  beta7_ci <- quantile(beta7, c(0.025, 0.975), digits = 2)
+  beta8_ci <- quantile(beta8, c(0.025, 0.975), digits = 2)
+  
+  
+```
+
+The 95% confidence intervals are as follows: 
+
+- $\beta_0$: 95% CI[`r beta0_ci[1]`, `r beta0_ci[2]`]
+- $\beta_1$: 95% CI[`r beta1_ci[1]`, `r beta1_ci[2]`]
+- $\beta_2$: 95% CI[`r beta2_ci[1]`, `r beta2_ci[2]`]
+- $\beta_3$: 95% CI[`r beta3_ci[1]`, `r beta3_ci[2]`]
+- $\beta_4$: 95% CI[`r beta4_ci[1]`, `r beta4_ci[2]`]
+- $\beta_5$: 95% CI[`r beta5_ci[1]`, `r beta5_ci[2]`]
+- $\beta_6$: 95% CI[`r beta6_ci[1]`, `r beta6_ci[2]`]
+- $\beta_7$: 95% CI[`r beta7_ci[1]`, `r beta7_ci[2]`]
+- $\beta_8$: 95% CI[`r beta8_ci[1]`, `r beta8_ci[2]`]
+
+
+Since none of the 95% confidence intervals for each of these coefficients contains 0, that means that at the $\alpha$ = 0.05 level, all coefficients in the linear model are statistically significant. 
+
+
+
+# 6 Box-Cox Transformation
+
+A Box-Cox Transformation is performed to correct for heteroscedasticity and non-normal distribution of the residuals. 
+
+
+```{r boxcox transformation}
+
+boxcox(median_house_value~.-ocean_proximity, data = cahouses, lambda = seq(0.15, 0.25, length = 10))
+
+```
+
+The lambda value from the box-cox suggests that a lambda of 0.22 may be effective in transforming the model. 
+
+```{r log transformation}
+
+
+bctransformed_model <- lm((median_house_value)^0.22 ~. -ocean_proximity, data = cahouses)
+
+kable(summary(bctransformed_model)$coef, caption = "log-transformed model", digits = 2)
+
+
+par(mfrow = c(2,2))
+plot(bctransformed_model)
+
+
+
+```
+
+It appears that the residual plots after performing the box-cox transformation are significantly better.
+
+## 6.1 Removing Observation #15361
+
+However, the influential point at observation 15361 significantly affects the data adversely. Observation 15361 has a Latitude of 33.35 and a Longitude of -117.42, which is where the Marine Corps' Base Camp Pendleton. This explains why the predictor variables poorly predict for this location. As such, a second model will be conducted by removing this point.  
+
+
+```{r removed influential point}
+
+#Remove observation 15361
+noinfpt_data <- cahouses[-15361,]
+
+
+noinfpt_model <- lm(median_house_value~.-ocean_proximity, data = noinfpt_data)
+
+#par(mfrow = c(2,2))
+#plot(noinfpt_model)
+
+noinfpt_bctransformed_model <- lm((median_house_value)^0.22 ~. -ocean_proximity, data = noinfpt_data)
+
+kable(summary(noinfpt_bctransformed_model)$coef, caption = "log-transformed model", digits = 2)
+
+par(mfrow = c(2,2))
+plot(noinfpt_bctransformed_model)
+
+```
+
+
+## 6.2 Box-Cox after Removing #15361 
+
+After removing the influential point and then performing a box-cox transformation, the residual plots look substantially better. 
+
+
+```{r box-cox w/o influential point}
+
+
+noinfpt_bc_model <- lm((median_house_value)^0.22 ~. -ocean_proximity, data = noinfpt_data)
+
+kable(summary(noinfpt_bc_model)$coef, caption = "log-transformed model w/o outlier", digits = 2)
+
+
+par(mfrow = c(2,2))
+plot(noinfpt_bc_model)
+
+
+
+```
+
+
+# 7 Goodness of Fit Measures
+
+Goodness-of-fit measures help to assess how well the model fits the observed data. These measures offer a quantitative value for how closely predicted values model the actual observed values. 
+
+The Goodness of Fit measures used here to assess the candidate models are the following: 
+
+- SSE: The sum of squared errors. Computed by adding up (predicted - observed)^2 values. 
+- $R^2$: Coefficient of Determination or R-squared. Measure of the proportion of variation in the dependent variable as explained by the independent variables. 
+- $R^2_{adj}$: Adjusted R-squared, which is a modified R-squared statistic that accounts for number of predictors. It helps reduce the upward bias experienced by normal R-squared. 
+- $C_p$: Mallow's $C_p$, which is designed to factor in goodness of fit and model complexity by factoring in estimating variance in residuals (alongside SSE).
+- AIC: Akaike Information Criterion, a calculation that balances model fit with complexity.
+- SBC: Schwarz Bayesian information Criterion, which is similar to AIC in analyzing model fit and complexity, but calculating complexity by factoring in sample size.  
+- PRESS: Predicted Residual Sum of Squares, which measures predictive performance based on the residual and leverage values of each observation in the model. 
+
+
+It's worth noting that SSE, AIC, SBC, and PRESS depend on the magnitude of the response. $R^2$, $R^2_{adj}$, and $C_p$ scale accordingly and are independent of response. This means that when the response is transformed in log transformations or box-cox, $R^2$, $R^2_{adj}$, and $C_p$ are better at measuring goodness of fit. 
+
+
+## 7.1 Candidate Models
+
+The models that will be analyzed will be the full model with slight modifications (no ocean proximity, median_income * 10000), box-cox transformation of the model, and box-cox transformation with the outlier removed. 
+
+## 7.2 Goodness-of-fit on Candidate models
+
+```{r goodness of fit}
+
+
+select=function(m){ # m is an object: model
+ e = m$resid                           # residuals
+ n0 = length(e)                        # sample size
+ SSE=(m$df)*(summary(m)$sigma)^2       # sum of squared error
+ R.sq=summary(m)$r.squared             # Coefficient of determination: R square!
+ R.adj=summary(m)$adj.r                # Adjusted R square
+ MSE=(summary(m)$sigma)^2              # square error
+ Cp=(SSE/MSE)-(n0-2*(n0-m$df))         # Mellow's p
+ AIC=n0*log(SSE)-n0*log(n0)+2*(n0-m$df)          # Akaike information criterion
+ SBC=n0*log(SSE)-n0*log(n0)+(log(n0))*(n0-m$df)  # Schwarz Bayesian Information criterion
+ X=model.matrix(m)                     # design matrix of the model
+ H=X%*%solve(t(X)%*%X)%*%t(X)          # hat matrix
+ d=e/(1-diag(H))                       
+ PRESS=t(d)%*%d   # predicted residual error sum of squares (PRESS)- a cross-validation measure
+ tbl = as.data.frame(cbind(SSE=SSE, R.sq=R.sq, R.adj = R.adj, Cp = Cp, AIC = AIC, SBC = SBC, PRD = PRESS))
+ names(tbl)=c("SSE", "R.sq", "R.adj", "Cp", "AIC", "SBC", "PRESS")
+ tbl
+ }
+
+
+## Edited this because the original kable was difficult to read. 
+
+select(initial_model)
+select(bctransformed_model)
+select(noinfpt_bc_model)
+
+
+```
+
+These goodness of fit measures demonstrate that the the box-cox transformation with the outlier removed appears to be the best model. This is because it had the largest adjusted R-squared value, measuring 0.6536. This means that 65.36% of the variability in median house value could be explained by the box-cox transformed model.
+
+# 8 Final Model
+
+As such, the final model is the linear model without observation 15361 present and response variable 'median house value' taken to the 0.22 power (what the lambda value was). The inferential statistics is summarized in the following table. 
+
+```{r final model}
+
+#Used base R to print because p-values kept displaying 0 instead of scietnific notation
+
+#kable(summary(bctransformed_model)$coef, caption = "Inferential Statistics of Final Model", digits = 6, scientific = TRUE)
+
+
+summary_coefs <- summary(noinfpt_bc_model)$coef
+
+print(summary_coefs, main = "Inferential Statsitics of Final Model")
+```
+
+## 8.1 Summary of the model
+
+The final model can be written as the following: 
+
+$Median House Value^{0.22}$ = -57.495 -0.829 * Longitude - 0.839 * Latitude + 0.0119 * Housing Median Age - 9.46E$10^{-5}$ * Total Rooms + 1.49E$10^{-3}$ * Total Bedrooms - 6.29E$10^{-4}$ * Population + 9.73E$10^{-4}$ * Households + 5.75E$10^{-5}$ * Median Income + $\epsilon$. 
+
+
+Each coefficient represents if one unit increase is made for that predictor variable with everything else held constant, that the median house value^0.22 will increase(+) or decrease(-) by that coefficient amount.  
+
+For example, what this means is that per one degree increase in longitude, housing price^0.22 will decrease by 0.829. 
+
+Or for an increase of 1 US Dollar in Median Income will increase median house value^0.22 by 5.75 * $10^{-5}$. 
+
+## 8.2 Residual Analysis on Final Model
+
+The residual plots demonstrate that there is still issues present in normality, linearity, and heteroscedasticity. No large influential points remain. 
+
+```{r residual analysis final}
+
+par(mfrow = c(2,2))
+plot(noinfpt_bc_model)
+
+```
+
+
+# 9 Conlusions and Discussion
+
+There was significant issues with residual assumptions as well that were partially rectified with modified transformation and removal of the outlier. Still, the violations for these residual assumptions are uncorrected. The inference is based on the central limit theorem given the large sample size of N = 20640. 
+
+One pressing concern is the troubling multicollinearity. That was not addressed in this report, and with the results seen in the final model, it largely reflects this as many of the coefficients were small. Going forward, it would have been wise to reduce this model. From a purely logical perspective, many pairs of variables are likely to be highly correlated: rooms and bedrooms; population and households could be easily be justified to be correlated in one way or another. 
+
+However, for the purposes of association, this report strongly demonstrates that all of these predictor variables affect the median house price in California. It doesn't serve as a good basis for prediction, especially considering its logarithmic transformation of the response variable. 
+
+Bootstrap methodology was only used partially. If it were used throughout the entire analysis and the model reduced to remove multicollinearity, the resultant model would perform substantially better than the final model here. 
+
+
+
+# References
+
+Wang, H.(2018). *housing.csv*[Data set]. https://www.kaggle.com/code/harrywang/housing-price-prediction/input?select=housing.csv
+
+
+O'Reilly Media (2017). *California Housing*. GitHub. https://github.com/ageron/handson-ml/blob/master/datasets/housing/housing.csv
+
+GPS coordinates, latitude and longitude with interactive maps. GPS coordinates, latitude and longitude with interactive Maps. (2023). https://www.gps-coordinates.net/ 
+
+
+
+
+
