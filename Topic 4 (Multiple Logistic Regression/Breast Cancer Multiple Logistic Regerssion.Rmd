@@ -1,0 +1,489 @@
+---
+title: "Case Study: Breast Cancer "
+author: "Joshua Zhong"
+date: "01/04/2024"
+output:
+ html_document:
+  toc: yes
+  toc_depth: 4
+  toc_float: yes
+  fig_width: 6
+  fig_caption: yes
+  number_sections: yes
+  theme: readable
+  editor_options:
+  chunk_output_type: console
+---
+
+
+```{=html}
+
+<style type="text/css">
+
+/* Cascading Style Sheets (CSS) is a stylesheet language used to describe the presentation of a document written in HTML or XML. it is a simple mechanism for adding style (e.g., fonts, colors, spacing) to Web documents. */
+
+h1.title {  /* Title - font specifications of the report title */
+  font-size: 24px;
+  color: DarkRed;
+  text-align: center;
+  font-family: "Gill Sans", sans-serif;
+}
+h4.author { /* Header 4 - font specifications for authors  */
+  font-size: 20px;
+  font-family: system-ui;
+  color: DarkRed;
+  text-align: center;
+}
+h4.date { /* Header 4 - font specifications for the date  */
+  font-size: 18px;
+  font-family: system-ui;
+  color: DarkBlue;
+  text-align: center;
+}
+h1 { /* Header 1 - font specifications for level 1 section title  */
+    font-size: 22px;
+    font-family: "Times New Roman", Times, serif;
+    color: navy;
+    text-align: left;
+}
+h2 { /* Header 2 - font specifications for level 2 section title */
+    font-size: 20px;
+    font-family: "Times New Roman", Times, serif;
+    color: navy;
+    text-align: left;
+}
+
+h3 { /* Header 3 - font specifications of level 3 section title  */
+    font-size: 18px;
+    font-family: "Times New Roman", Times, serif;
+    color: navy;
+    text-align: left;
+}
+
+h4 { /* Header 4 - font specifications of level 4 section title  */
+    font-size: 18px;
+    font-family: "Times New Roman", Times, serif;
+    color: darkred;
+    text-align: left;
+}
+
+body { background-color:white; }
+
+.highlightme { background-color:yellow; }
+
+p { background-color:white; }
+
+</style>
+```
+
+```{r setup, include=FALSE}
+
+   breast_cancer_data = read.csv("https://raw.githubusercontent.com/JZhong01/STA321/main/Topic%204%20(Multiple%20Logistic%20Regression/syntheticBreastCancerData.csv", 
+   header = TRUE)
+   
+  options(scipen = 2)
+
+   library(knitr)
+   library(leaflet)
+   library(EnvStats)
+   library(MASS)
+   library(phytools)
+   library(boot)
+   library(psych)
+   library(car)
+   library(dplyr)
+   library(kableExtra)
+
+# Specifications of outputs of code in code chunks
+knitr::opts_chunk$set(
+	echo = FALSE,
+	message = FALSE,
+	warning = FALSE,
+	comment = FALSE,
+	results = TRUE, 
+	digits = 4
+)
+   
+```
+
+
+# Data set Description
+
+The data set was synthetic data set created for practice purposes in the Book *Applied Analytics through Case Studies Using SAS and R* by Deepti Gupta and APress. It has 600 observations with 11 total variables - 10 numerical variables and 1 categorical variable. Only 10 of these variables are predictors, however, because observation number is included as a numerical, but has no predictive power. 
+
+The link to the raw CSV file in posted on GitHub:  https://raw.githubusercontent.com/JZhong01/STA321/main/Topic%204%20(Multiple%20Logistic%20Regression/syntheticBreastCancerData.csv.
+
+- Sample Number: A numeric variable that's a unique identifier for each sample. Not used in the model as it has no predictive power.  
+- Thickness of Clump: A numeric variable that indicates thickness of cell clump. Benign cells are typically monolayered, while cancerous cells tend to form multilayers.
+- Cell Size Uniformity: Numeric variable that measures uniformity of cell size. Benign cells generally vary in size less than malignant cells. 
+- Cell Shape Uniformity: Numeric variable that assesses the uniformity of cell shape. Benign cells usually exhibit consistent shapes, while malignant cells display a wide range of shapes.
+- Marginal Adhesion: Numeric variable that reflects how cells stick together. Benign cells tend to adhere more strongly to each other, whereas malignant cells often demonstrate loose or minimal adhesion.
+- Single Epithelial Cell Size: Numeric variable that evaluates the size of epithelial cells. In benign cases, these cells are typically of a normal size, whereas in malignant cases, they are significantly enlarged. 
+- Bare Nuclei: Numeric variable that describes the bare nuclei's interaction with cytoplasm. In benign cells, bare nuclei are usually not surrounded by cytoplasm, contrasting with cancer cells, where they are often surrounded by cytoplasm.
+- Bland Chromatin: Numeric variable that describes the appearance of chromatin within the nucleus. Benign cells are characterized by uniform or fine chromatin, while cancer cells usually have coarse chromatin.
+- Normal Nucleoli: Numeric variable that indicates the prominence of nucleoli within the cells. In benign cells, nucleoli are typically very small, but in malignant cells, they are more prominent. 
+- Mitoses: Numeric variable that relates to the rate of cell division. Benign cells display normal mitotic activity, whereas malignant cells often exhibit abnormal or increased cell growth.
+- Outcome: Categorical response variable that represents the diagnosis, with "No" indicating the presence of benign cells and "Yes" indicating the presence of malignant breast cancer.
+
+
+# Research Question
+
+The primary objective of this analysis is to identify if an association between outcome (benign or malignant) of breast cancer cases and these 9 cellular characteristics. 
+
+The objectives of this case study are as follows: 
+
+- To evaluate the association between  of cell size and shape, descriptors of the cell clump, and characteristics at an intracellular level towards determining cancer malignancy. 
+- To develop and validate an associative model based on these cellular characteristics for the diagnosis of breast cancer. 
+
+The hypotheses of the study are that: 
+
+- Cell size and shape uniformity, marginal adhesion, and intracellular characteristics significantly predicts cancer malignancy. 
+
+- The predictive model is effective and accurate in diagnosing breast cancer using these cellular characteristics. 
+
+
+# Exploratory Analysis
+
+In our case study, we analyze the synthetic_cancer_data data set, which includes critical cellular features to differentiate between benign and malignant breast cancer. Key variables such as 'Thickness of Clump', 'Cell Size Uniformity', and 'Cell Shape Uniformity' provide insights into the physical attributes of cancer cells. Additional factors like 'Marginal Adhesion', 'Bland Chromatin', and 'Mitoses' help in understanding cellular behaviors and division patterns. This comprehensive analysis aims to enhance the accuracy of breast cancer diagnosis through detailed examination of these cellular characteristics.
+
+## Modify Response
+
+
+When performing logistic regression, it's a standard practice to code the response variable as binary numerical values. In our data set, 'Outcome' will be recoded such that "Yes" represents 1 and "No" represents 0. Here, '1' signifies 'Success' in identifying the presence of cancer, while '0' indicates 'Failure' to do so, within the context of statistical modeling. This terminology does not reflect any value judgment about the disease itself; rather, it's a convention in statistical analysis to facilitate the computational process of the logistic regression.
+
+
+
+```{r recode response}
+
+breast_cancer_data$Outcome <- ifelse(breast_cancer_data$Outcome == 'Yes', 1, 0)
+
+
+```
+
+
+## Data Management
+
+This synthetic data set is checked for any missing variables, outliers, and anything else that may require transformation. 
+
+### Checking for NA values
+
+We first ensure that there are no missing values in our data set and observations. 
+
+```{r check NAs}
+
+sum(is.na(breast_cancer_data$Thickness_of_Clump))
+sum(is.na(breast_cancer_data$Cell_Size_Uniformity))
+sum(is.na(breast_cancer_data$Cell_Shape_Uniformity))
+sum(is.na(breast_cancer_data$Marginal_Adhesion))
+sum(is.na(breast_cancer_data$Single_Epithelial_Cell_Size))
+sum(is.na(breast_cancer_data$Bare_Nuclei))
+sum(is.na(breast_cancer_data$Bland_Chromatin))
+sum(is.na(breast_cancer_data$Normal_Nucleoli))
+sum(is.na(breast_cancer_data$Outcome))
+
+```
+
+There are no missing values in our data set. This is unsurprising because the data was fabricated for logistic regression practice. However, we must check this regardless because no assumptions can be made. 
+
+### Check for Outliers
+
+We try to ascertain the number of outliers found in our data. We do so by calculating the interquartile range (IQR) which is the range from the 75th percentile and the 25th percentile. Using a commonly used rule-of-thumb where outliers are values that are 1.5 * IQR above the 75th percentile and 1.5 * IQR below the 25th percentile. 
+
+```{r check outliers}
+
+#remove response + observation ID variables 
+predictor_data <- breast_cancer_data[,-c(1,11)]
+
+
+#Calculate Q1, Q3, IQR
+Q1 <- apply(predictor_data, 2, quantile, probs=0.25)
+Q3 <- apply(predictor_data, 2, quantile, probs=0.75)
+IQR <- Q3 - Q1
+
+
+# Identifying outliers
+outliers <- apply(predictor_data, 2, function(x) {
+  lower_bound <- Q1 - 1.5 * IQR
+  upper_bound <- Q3 + 1.5 * IQR
+  x < lower_bound | x > upper_bound
+})
+
+outliers_per_variable <- colSums(outliers)
+
+```
+
+Using the measure, we found many outliers based off each predictor variable individual, with the largest upwards of 85 "outliers". However, this isn't a reliable measure of the nature of how many and how large the outliers in the data is. This is because there are many predictor variables which means that a 'lower than normal' value for Thickness of Clump could be explained by other predictor variables or indicate potential malignant cells. 
+
+As a result, no transformations are conducted and no outliers were removed. These are 2 common methods of dealing with outliers, but this is an associative study so we're not concerned with creating a predictive model but merely analyzing the relationship between the predictor variables and the response or Outcome. 
+
+
+## Variable Inspection
+
+In multiple logistic regression, there aren't many diagnostic tools that we can utilize. However, this doesn't mean that pre-processing procedures aren't performed on predictor variables. 
+
+
+### Pairwise Scatter Plot
+
+Pairwise scatter plots are used to inspect the predictor variables. Any potential problems can be more easily identified with this plot. 
+
+```{r pairwise scatter plots}
+
+pairs.panels(breast_cancer_data[,-c(1,11)], 
+             method = "pearson", # correlation method
+             hist.col = "#00AFBB",
+             density = TRUE,  # show density plots
+             ellipses = TRUE # show correlation ellipses
+             )
+
+
+```
+<br>
+
+The scatter plot exposes that many of the predictor variables exhibit unimodal but right skews. In addition, there is moderate correlation found between many of the variables.
+
+### Discretizing Variables
+
+In order to address the heavy right skews experienced by some of the predictor variables, we are discretizing variables. By converting continuous data into discrete categories, it not only simplifies the data but also helps in managing skewed distributions, making the statistical analysis more robust, especially in models sensitive to non-normal distributions.
+
+
+Let's take a look at all the numerical predictor variables for our model: 
+
+```{r histogram of variables}
+
+par(mfrow=c(1,3))
+
+hist(predictor_data$Thickness_of_Clump, xlab = "Clump Thickness", main = "Thickness of Clump")
+hist(predictor_data$Cell_Shape_Uniformity, xlab = "Shape Uniformity", main = "Cell Shape Uniformity")
+hist(predictor_data$Cell_Size_Uniformity, xlab = "Size Uniformity", main = "Cell Size Uniformity")
+
+hist(predictor_data$Marginal_Adhesion, xlab = "Margin", main = "Marginal Adhesion")
+hist(predictor_data$Single_Epithelial_Cell_Size, xlab="Single cell size", main = "Single Epithelial Cell Size")
+hist(predictor_data$Bare_Nuclei, xlab = "Nuclei", main = "Bare Nuclei")
+
+hist(predictor_data$Bland_Chromatin, xlab = "Chromatin", main = "Bland Chromatin")
+hist(predictor_data$Normal_Nucleoli, xlab="Nucleoli", main = "Normal Nucleoli")
+hist(predictor_data$Mitoses, xlab = "Mitoses", main = "Mitoses")
+
+```
+<br>
+
+While we notice that nearly all variables exhibit a right skew, we should use caution to discretize every one with skew. This is because putting a continuous variable into discrete bins losses information about the underlying trends and thus statistical power. Therefore in our case we will use it only for the variables that need it the most: Bare Nuclei and Mitoses. 
+
+The variables we'll be attempting to discretize are Bare Nuclei and Mitoses. Bare Nuclei is an ideal candidate for discretization because it has a long right tail, but at the end of the tail there is a column far from the mean that has a frequency of nearly 25% of the sample size. For this shape that is almost bimodal, discretizing these into 3 bins(left, middle, and right) helps simplify this complex distribution. Mitoses is also an ideal candidate for discretization because it exhibits an extremely long and thin tail - the frequency of mitoses drops off significantly after 2. Making 3+ mitoses into a bin helps to group together the remaining 15% of the sample size into a single group helps with simplification. 
+
+Bare Nuclei will have 3 separate groups: 1 and 2 bare nuclei, 3 through 9 bare nuclei, and 10 bare nuclei. Mitoses will have 2 groups: 1 mitosis and 2 or more mitoses.  
+
+```{r discretization}
+
+bare_nuclei <- predictor_data$Bare_Nuclei
+grp.bn <- bare_nuclei
+
+grp.bn[bare_nuclei %in% c(1:2)] = "1-2"
+grp.bn[bare_nuclei %in% c(3:9)] = "3-9"
+grp.bn[bare_nuclei %in% c(10)] = "10"
+
+mitoses <- predictor_data$Mitoses
+grp.mit <- mitoses
+
+grp.mit[mitoses %in% c(1)] = "1"
+grp.mit[mitoses %in% c(2:10)] = "2+"
+
+
+breast_cancer_data$grp.bn = grp.bn
+breast_cancer_data$grp.mit = grp.mit
+
+
+```
+<br>
+
+### Multicollinearity
+
+The pairwise scatter plot we had earlier exhibited a heavy presence of correlated pairs of predictor variables. Since there are 9 numerical predictor variables, 36 pairwise comparisons were made. A staggering 16 of these pairs had a correlation coefficient of 0.60 or more. A correlation coefficient measures the strength and direction of the relationship between 2 variables, and having a coefficient of 0.60 indicates a moderate to strong linear relationship. Having so many pairs of predictors correlated with one another indicates multicollinearity. 
+
+Multicollinearity is problematic as too much can obscure the individual effect of each predictor on the outcome variable, making it difficult to ascertain the true relationship between predictors and the response.  
+
+There are many ways to address multicollinearity. Utilizing variable selection techniques which iteratively add and remove variables depending on if adding those variables improves the model's fit. Another method is to use regularization techniques e.g. Ridge regression, which implements a penalty to coefficients of variables that are correlated with one another - this reduces the magnitude of the collinear variables. One final way to combat multicollinearity is to combine correlated variables into a predictor using principal component analysis. In our study, we will be implementing the first method and using an automatic variable selection process to help remove redundant variables. 
+
+
+### Variable Transformation
+
+In association analysis, our primary objective is to understand the relationships between variables as they naturally occur, without assuming any specific direction of causation. Variable transformations can alter these relationships, potentially obscuring the natural associations we aim to uncover. Hence, we refrain from transforming variables in this phase to preserve the original structure and distribution of the data, ensuring an authentic exploration of associations.
+
+
+
+# Regression Modeling
+
+
+## Building Candidate Models
+
+It's important that we build multiple models to compare with one another to assess for quality of fit. In this case study we will compare 3 models: full model without discretizing Bare Nuclei and Mitoses, full model with discretizing both Bare Nuclei and Mitoses, and reduced model after applying stepwise regression. 
+
+### Full Model without Discretization
+
+As mentioned prior, we performed discretization on two of our predictor variables because there were heavy right skews and/or potentially bimodal distribution. This process of discretization can cause statistical power, or the probability of detecting an effect when one truly exists, to be reduced; as a result, it's essential that we ensure that the model benefits from our discretization instead of harming it. 
+
+
+```{r full model w/o discretization}
+
+full_nodis_model = glm(Outcome~. - Sample_No - grp.bn - grp.mit, 
+          family = binomial(link = "logit"),  #  logit(p) = log(p/(1-p))!
+          data = breast_cancer_data)  
+kable(summary(full_nodis_model)$coef, 
+      digits = 4, 
+      scientific = TRUE,
+      caption="Summary of inferential statistics of the full model without discretization")
+
+
+
+
+```
+<br>
+
+The full model appears to have multiple variables that are insignificant. We will encounter this later when we use goodness-of-fit measures to select the best model. 
+
+
+### Full model with Discretization
+
+This model includes all the variables, only now Bare Nuclei is split into 3 discrete bins and Mitoses is split into 2 bins. 
+
+```{r full model w/ discretization}
+
+full_dis_model = glm(Outcome~. - Sample_No - Bare_Nuclei - Mitoses, 
+          family = binomial(link = "logit"),  #  logit(p) = log(p/(1-p))!
+          data = breast_cancer_data)  
+kable(summary(full_dis_model)$coef, 
+      digits = 4, 
+      scientific = TRUE,
+      caption="Summary of inferential statistics of the full model with discretization")
+
+
+
+```
+<br>
+
+
+Our model demonstrated that for Mitoses - a predictor that wasn't statistically significant in the full model without discretizing either (p = 0.0834) remained statistically non-significant even after being binned. In the context of logistic regression, this suggests that Mitoses, as categorized, does not show a clear or strong relationship with the odds of the outcome occurring. This could imply that the discretization bins do not capture the essence of how the variable relates to the outcome, or the variable might not be a good predictor in the presence of other variables. It's likely that since it wasn't statistically significant in both models that Mitoses is not a good predictor and has nothing to do with our discrete groups. 
+
+Bare Nuclei was statistically significant in the model without discretization and remained statistically significant in both dummy variables, which suggests that the discretization has successfully captured a meaningful relationship between the predictor and the outcomes. 
+
+### Reduced Model from Stepwise Regression
+
+Automatic stepwise regression was performed on both the discretized full model and the non-discretized full model. The outputs for both are shown below. 
+
+```{r stepwise reduced model}
+
+reduced_nodis_model = stepAIC(full_nodis_model, 
+                      direction = "both",   # stepwise selection
+                      trace = 0   # do not show the details
+                      )
+
+
+kable(summary(reduced_nodis_model)$coef, digits = 4,
+      caption="Summary of inferential statistics of reduced model without discretization")
+
+
+
+reduced_dis_model = stepAIC(full_dis_model, 
+                      direction = "both",   # stepwise selection
+                      trace = 0   # do not show the details
+                      )
+
+kable(summary(reduced_dis_model)$coef, digits = 4, 
+      caption="Summary of inferential statistics of reduced model with discretization")
+
+
+
+
+```
+<br>
+
+Interestingly enough, it appears as though we see the benefits of discretization when comparing the reduced model with discretization and the reduced model without discretization. The reduced model without performing discretization has 2 variables, Normal Nucleoli and Mitoses, statistically non-significant, whereas every variable in the reduced discretized model is statistically significant.  
+
+
+## Model Selection
+
+We are using the global goodness-of-fit statistics deviance residuals, null deviance, and Akaike's Information Criterion (AIC) to assess for the quality in our models. These statistics are critical in model selection since they provide a comprehensive measure of model performance. 
+
+The deviance residual compares the fitted model to a saturated model, with lower values indicating better fit, while the null deviance evaluates the model against a baseline model with no predictors, helping to understand the improvement offered by including explanatory variables. 
+
+The AIC, a balance of model fit and complexity, penalizes the inclusion of additional parameters, guiding us towards a model that achieves the best trade-off between simplicity and explanatory power. 
+
+Collectively, these statistics enable an informed comparison of competing models, facilitating the selection of the most appropriate model for our data.
+```{r global goodness of fit}
+
+global.measure=function(s.logit){
+dev.resid = s.logit$deviance
+dev.0.resid = s.logit$null.deviance
+aic = s.logit$aic
+goodness = cbind(Deviance.residual =dev.resid, Null.Deviance.Residual = dev.0.resid,
+      AIC = aic)
+goodness
+}
+
+goodness=rbind(full_nodis_model = global.measure(full_nodis_model),
+               full_dis_model = global.measure(full_dis_model),
+              reduced_nodis_model=global.measure(reduced_nodis_model),
+              reduced_dis_model=global.measure(reduced_dis_model))
+
+row.names(goodness) = c("Full model w/o Discretization", "Full model w/ Discretization", "Reduced model w/o Discretization ", "Reduced Model w/ Discretization")
+
+kable(goodness, digits = 2, caption ="Comparison of global goodness-of-fit statistics")
+
+
+
+```
+<br>
+
+Upon comparing goodness of fit statistics between full and reduced models that both did and didn't have discretization, it turns out that the reduced model without discretization turns out to be better because of its lower Deviance residuals and lower AIC value. 
+
+A model with a higher Akaike's Information Criterion (AIC) is generally considered worse because the AIC aims to penalize complexity: the lower the AIC, the better the balance between model fit and complexity. Therefore, when comparing models, the one with the lower AIC is typically preferred.
+
+Similarly, a model with higher deviance residuals is usually considered worse. Deviance residuals are a measure of the discrepancy between the observed values and the values expected under the model in question. Lower values indicate that the model has a better fit to the observed data, while higher values suggest a poorer fit. Therefore, for both AIC and deviance residuals, lower values are indicative of a potentially better model.
+
+
+# Final Model
+
+Our final model was achieved by analyzing the benefits and drawbacks of discretizing variables, reducing the models to address multicollinearity, and running global goodness-of-fit statistics to compare our candidate models. 
+
+In the end, the reduced model without discretization proved to be the model with the best goodness-of-fit statistics and the one we selected to represent our final model. The model does contain two variables, Normal Nucleoli and Mitoses, that aren't statistically significant. The reasoning behind leaving these values in the model is for model stability - that their exclusion could cause other coefficients to be drastically affected. One way to test this is by performing sensitivity analyses to justify their inclusion in the model, although this is not performed as it's outside the scope of this case study. 
+
+
+```{r odds ratio}
+
+model_coef_matrix = summary(reduced_nodis_model)$coef
+odds.ratio = exp(coef(reduced_nodis_model))
+out.stats = cbind(model_coef_matrix, odds.ratio = odds.ratio)                 
+kable(out.stats,digits = 2, caption = "Summary Stats with Odds Ratios")
+
+
+
+```
+<br>
+
+The odds ratio in logistic regression quantifies the strength and direction of the association between each predictor variable and the odds of the outcome occurring. For instance, the odds ratio for 'Thickness_of_Clump' is 1.60, indicating that for each unit increase in clump thickness, the odds of the outcome (cancer presence) are 60% higher, given all other variables are held constant. Similarly, 'Cell_Shape_Uniformity' has an odds ratio of 1.50, suggesting a 50% increase in the odds with each unit increase in shape uniformity. However, it's important to note that 'Normal_Nucleoli' and 'Mitoses' have p-values greater than the common alpha level of 0.05, meaning their associations with the outcome might not be statistically significant at this level. Despite this, 'Mitoses' presents an odds ratio of 1.52, implying a potential increase in the odds of the outcome by 52% for each unit increase, which could be meaningful in a practical sense if further validated.
+
+
+# Summary 
+
+
+Our final model was derived from a synthetic data set consisting of 600 observations and 11 variables, with 9 predictors capturing various cellular characteristics indicative of benign or malignant breast cancer. We aimed to associate these cellular traits with cancer outcomes. 
+
+There were many alterations we had to perform on the data. We began with recoding the categorical response variable 'Outcome' from "Yes" and "No" to 1 and 0, ensuring compatibility for logistic regression analysis. 
+Preliminary checks for missing values and outliers followed, leading to the discovery of substantial multicollinearity, which we addressed through automatic variable selection using stepwise regression. We then discretized predictor variables that may be more 
+
+This process refined our models, both discretized and non-discretized, by removing non-significant predictors, ultimately revealing that the reduced model without discretization had a superior fit, evidenced by lower AIC and deviance residuals, despite the non-significance of two factors. This rigorous methodology cemented our understanding of the variables most predictive of breast cancer, culminating in a robust final model for the case study.
+
+As a result, our final model explains that certain factors statistically significantly increase the odds that cancer (our 'success' value) is diagnosed, some showing upwards of increasing the odds by 60%. 
+
+
+# References
+
+Why is it bad to discretize a continuous variable? (2022, October 14). Cross Validated. Retrieved January 4, 2024, from https://stats.stackexchange.com/questions/592246/why-is-it-bad-to-discretize-a-continuous-variable
+
+Gupta, D. (2018). *Applied Analytics through Case Studies Using SAS and R*. APress.
+
+Ciaburro G. (2018). *Regression Analysis with R: Design and Develop Statistical Nodes to Identify Unique Relationships Within Data at Scale*. Packt Publishing. 
+
+
+
+
