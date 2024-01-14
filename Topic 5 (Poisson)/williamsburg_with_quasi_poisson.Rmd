@@ -1,0 +1,542 @@
+---
+title: "Case Study: Quasi-Poisson modeling bike counts and rates on the Williamsburg Bridge"
+author: "Joshua Zhong"
+date: "01/14/2024"
+output:
+ html_document:
+  toc: yes
+  toc_depth: 4
+  toc_float: yes
+  fig_width: 6
+  fig_caption: yes
+  number_sections: yes
+  theme: readable
+  editor_options:
+  chunk_output_type: console
+---
+
+
+```{=html}
+
+<style type="text/css">
+
+/* Cascading Style Sheets (CSS) is a stylesheet language used to describe the presentation of a document written in HTML or XML. it is a simple mechanism for adding style (e.g., fonts, colors, spacing) to Web documents. */
+
+h1.title {  /* Title - font specifications of the report title */
+  font-size: 24px;
+  color: DarkRed;
+  text-align: center;
+  font-family: "Gill Sans", sans-serif;
+}
+h4.author { /* Header 4 - font specifications for authors  */
+  font-size: 20px;
+  font-family: system-ui;
+  color: DarkRed;
+  text-align: center;
+}
+h4.date { /* Header 4 - font specifications for the date  */
+  font-size: 18px;
+  font-family: system-ui;
+  color: DarkBlue;
+  text-align: center;
+}
+h1 { /* Header 1 - font specifications for level 1 section title  */
+    font-size: 22px;
+    font-family: "Times New Roman", Times, serif;
+    color: navy;
+    text-align: left;
+}
+h2 { /* Header 2 - font specifications for level 2 section title */
+    font-size: 20px;
+    font-family: "Times New Roman", Times, serif;
+    color: navy;
+    text-align: left;
+}
+
+h3 { /* Header 3 - font specifications of level 3 section title  */
+    font-size: 18px;
+    font-family: "Times New Roman", Times, serif;
+    color: navy;
+    text-align: left;
+}
+
+h4 { /* Header 4 - font specifications of level 4 section title  */
+    font-size: 18px;
+    font-family: "Times New Roman", Times, serif;
+    color: darkred;
+    text-align: left;
+}
+
+body { background-color:white; }
+
+.highlightme { background-color:yellow; }
+
+p { background-color:white; }
+
+</style>
+```
+
+```{r setup, include=FALSE}
+
+   bike_data = read.csv("https://raw.githubusercontent.com/JZhong01/STA321/main/Topic%205%20(Poisson)/Poisson_Data_Set.csv", 
+   header = TRUE)
+   
+  options(scipen = 2)
+
+   library(knitr)
+   library(leaflet)
+   library(EnvStats)
+   library(MASS)
+   library(phytools)
+   library(boot)
+   library(psych)
+   library(car)
+   library(dplyr)
+   library(kableExtra)
+   library(pROC)
+   library(pander)
+
+# Specifications of outputs of code in code chunks
+knitr::opts_chunk$set(
+	echo = FALSE,
+	message = FALSE,
+	warning = FALSE,
+	comment = FALSE,
+	results = TRUE, 
+	digits = 4
+)
+   
+```
+
+
+# Introduction
+
+This data set was gathered by the New York City's Traffic Information Management System (TIMS), which monitors and records cyclists 24 hours a day. Each entry is an observation of the total bicyclists on that day. This data set is a subset of a larger data set that captures monthly records of bike counts across New York City's four East River bridges: Brooklyn Bridge, Manhattan Bridge, Williamsburg Bridge, and Queensboro Bridge. Our data here captures the number of bikes that cross the Williamsburg Bridge. 
+
+
+## Data Set Description
+
+This data set models a Poisson distribution and anlyzing it helps us understand the patterns and predict based on day of the week, temperature, and precipitation among other predictor variables. 
+ 
+
+The link to the raw CSV file in posted on GitHub:  https://raw.githubusercontent.com/JZhong01/STA321/main/Topic%205%20(Poisson)/Poisson_Data_Set.csv.
+
+- Date: This is our ID variable and demarcates the date which the observation was made. Note that each observation is a record of an entire day's bicycle count. 
+- Day: This is a categorical predictor variable that marks what day of the week that observation is. 
+- HighTemp: This is a numerical predictor variable that marks what the recorded high for temperature is on that observed day. 
+- LowTemp: This is a numerical predictor variable that marks what the recorded low for temperature is on that observed day. 
+- Precipitation: This is a numerical predictor variable that tracks that amount of precipitation measured in milimeters of height. 
+- WilliamsburgBridge: This is our numerical response variable that tracks the bicyclist count across the Williamsburg Bridget for each observed day.
+- Total: This is another numerical response variable, but this one tracks the total number of bicyclists across all four East River bridges. 
+
+To get an idea of what our data set looks like, here are the first 6 observations in the data set. 
+
+```{r head of bike data}
+
+pander(head(bike_data), caption = "First few observations in data set")
+
+
+```
+
+
+
+# Research Question
+
+The primary objectives of this analysis is to build 2 Poisson regression models and one quasi-poisson model that models 1) how the predictors affect the bicyclist counts across the Williamsburg Bridge and 2) how the predictors affect the proportion of bicyclists that ride on Williamsburg Bridge out of total East River Bridge ridership. 
+
+Secondary objectives for this case study are as follows: 
+
+- To identify daily and weekly patterns in bike traffic across the Williamsburg Bridge. 
+- To determine the effect of temperature on volume of bike traffic. 
+- To evaluate the role precipitation plays in bike traffic. 
+- To assess the utility of a Poisson distribution in modeling discrete biking data. 
+- To compare Poisson regression models with a Quasi-Poisson model to determine the appropriateness of the model for our data by assessing the presence of overdispersion and evaluating the model fit and predictive accuracy.
+
+The hypotheses of the study are that: 
+
+- The number of bicyclists is dependent on the day of the week, temperature, and precipitation. 
+- The proportion of bicyclists crossing the Williamsburg Bridge isn't affected by our predictor variables. 
+- The quasi-poisson model generated is appropriate given our data.  
+
+
+# Poisson Models
+
+Poisson regression models are particularly useful for modeling count data where response variable represents the number of occurrences of an event. This can be captured in the context of a fixed time period or the rate for a given time span. 
+
+
+## Assumptions
+
+- Poisson Response: The assumption that the response variable is a count per unit of time or space, described by a Poisson distribution, is fundamental because the Poisson distribution is a discrete probability distribution that expresses the probability of a given number of events occurring in a fixed interval of time or space.
+- Independence: The assumption of independence stipulates that the occurrence of any event must not influence the occurrence of another. In practice, this means that the model assumes no correlation between event occurrences (e.g. if an event is likely to trigger subsequent events). Violation of this assumption could lead to an observed variance that is greater than the mean.
+- Mean is equal to the variance: In a Poisson distribution, the mean and variance are both equal to $\lambda$. When actual data has a variance that is significantly different from the mean (overdispersion or underdispersion), the standard Poisson regression may not be the best fit. In such cases, alternative models like the Negative Binomial regression can be used, which includes an additional parameter to account for overdispersion.
+- Linearity: The linearity assumption in Poisson regression is about the relationship between the natural log of the event rate, $log(\lambda)$, and the independent variables (x); This establishes a linear relationship between log of the response and predictors. This transformation allows for linear regression to be conducted on non-linear data and ensures both positive predictions and that the heteroscedastic data is properly handled. 
+
+
+## Poisson Regression Model for Counts
+
+The Poisson regression model for counts is a statistical approach for analyzing count data, specifically when we are interested in the number of events occurring within a fixed period or area. This model facilitates the exploration of how various independent variables influence the rate at which events occur, with its parameters estimated using maximum likelihood estimation. By employing the natural logarithm as a link function, Poisson regression models the log of the expected event count as a linear combination of the independent variables, enabling the direct interpretation of the effect of predictors on the event rate.
+
+The general regression model for counts follows this expression: 
+
+$log(Response) = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + ... + \beta_p x_p$
+
+The betas are coefficients of the Poisson regression model. $\beta_0$ represents the intercept of the function, which is not useful in our analysis. $\beta_i$ represents the change in the log mean of a one unit change in $x_i$ such that all other predictor variables are held constant. 
+- When $\beta = 0$: The predictor variable isn't associated with the response variable. 
+- When $\beta > 0$: The predictor variable is positively associated with the response. This means that an increase in the predictor variable increases the expected number of occurrences in the response.  
+- When $\beta < 0$: The predictor variable is negatively associated with the response. This means that an increase in the predictor variable decreases the expected number of occurrences in the response. 
+
+In the context of Poisson regression, the exponential of the beta coefficient $e^\beta$ can be interpreted as a relative risk. This means if you take the exponential of the beta coefficient for a predictor variable, you get a factor that tells you how much the risk (or rate) of the event occurring increases (if $\beta > 0$) or decreases (if $\beta < 0$) with a one-unit increase in that predictor variable.
+
+
+## Poisson Regression Model for Rates
+
+The Poisson regression model for rates is concerned about not just how many times an event occurs, but how often relative to a measure of time or opportunity. We therefore have to adjust our model to include a term for exposure - this adjustment term is referred to as an offset and predictor variables can share a common offset or individually have their own offset. 
+The general regression model for rates follows this expression: 
+
+$log(Response/t) = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + ... + \beta_p x_p$
+
+where t is the offset value and log(t) is an observation. Using properties of logarithms, we can add log(t) from both sides and cancel both log functions by taking Euler's number to get this equivalent expression:
+
+$Response = t * e^{\beta_0 + \beta_1 x_1 + \beta_2 x_2 + ... + \beta_p x_p}$
+
+This demonstrates that the response is proportional to t, so the interpretation of the beta coefficients is similar to poisson regression for counts multiplied by a factor of t. 
+
+
+## Quasi-Poisson Model
+
+The Quasi-Poisson regression model is an extension of the traditional Poisson regression, tailored for count data that exhibit overdispersion, where the variance is greater than the mean. Similar to the Poisson model, it predicts the log of the expected count of events, but it relaxes the strict equality between the mean and the variance by introducing a dispersion parameter. This parameter scales the variance independently of the mean, allowing for more flexibility and providing a better fit for data that do not conform to the Poisson assumption of equal mean and variance. The general form of the model remains consistent with the Poisson regression, represented as:
+
+$log(Response) = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + ... + \beta_p x_p$
+
+In this framework, the $\beta $ coefficients  estimate the change in the log of the expected counts, with the interpretation of these coefficients remaining analogous to the standard Poisson model. However, the standard errors of the estimated coefficients are adjusted to reflect the additional variability inherent in the data, making inference more reliable for overdispersed data sets. The Quasi-Poisson model, therefore, provides a robust alternative for analysts dealing with count data where the Poisson distribution's assumptions do not hold.
+
+# Modeling Williamsburg Counts
+
+We will start creating a poisson regression model for the bike counts of Williamsburg Bridge 
+
+## Variable Selection
+
+In our Poisson model, we're starting off with the full model including all variables barring Total count across all bridges and Date, which acts as an observation ID and is thus not a predictor. If any predictors are not statistically significant, we will perform variable selection and remove them. 
+
+```{r full model cases}
+
+bike_data$WilliamsburgBridge <- gsub(",", "", bike_data$WilliamsburgBridge) #remove commas
+bike_data$WilliamsburgBridge <- as.numeric(bike_data$WilliamsburgBridge)
+
+full_cmodel <- glm(WilliamsburgBridge ~. - Date - Total, family = poisson(link = "log"), data = bike_data)
+
+full_cmodel_coef <- summary(full_cmodel)$coef
+
+kable(full_cmodel_coef, digits = 4, caption = "Full Poisson regression model for the counts of Williamsburg Bridge bicyclists.")
+
+
+```
+
+<br>
+
+Day of the week is a categorical variable so we split that up into 6 dummy variables. It appears that all the p-values are less than $\alpha = 0.05$ significance level and all statistically significantly predict Williamsburg bike count. As such, we will continue to use this full model. 
+
+## Regression Coefficient Interpretation
+
+- Intercept: $\beta_0$ indicates the log count of bike crossings on the Williamsburg Bridge when all other variables in the model are 0; this means that this is the log count on a Friday assuming other predictor variables are 0. However, we're not interested in this value. 
+- Day: Day was split into 6 dummy variables for this model. Friday was chosen as the baseline day of the week. In our model, Saturday and Sunday have negative coefficients; this suggests that compared to Friday, these days have a lower log count of bikes on the Williamsburg Bridge. Employing similar logic, weekdays Monday through Thursday all have positive coefficients, which means that these days all have higher log count of bikes compared to Friday. Note this is assuming that all other predictors remain constant and the only variation is the day of the week.  
+- High Temp: High Temp has a positive coefficient, which means that having a higher day-high temperature has a positive association with bike count on the Williamsburg Bridge. A one unit increase in High Temp increases the log(count) of bike count. 
+- Low Temp: Low Temp has a negative coefficient, which means that having a higher day-low temperature has a negative association with bike count. A one unit increase in Low Temp reduces the log(count) of bike count. 
+- Precipitation: Precipitation has a relatively large negative coefficient, which means that there is a large negative association between precipitation and bike count on the Williamsburg Bridge. This means that a one unit increase in precipitation drastically reduces the log(count) of bikes on the Williamsburg Bridge. 
+
+This model is log-linear, so the coefficients represent the expected change in the log count of the response for a one-unit change in the predictor. 
+
+## Model Construction
+
+Before data could be analyzed, we need to transform our data into a usable format. The count for Williamsburg Bridge crossings is originally a character variable containing commas. In order to create a generalized linear regression, I transformed this response variable into a number by removing non-numeric characters and transforming the variable. 
+
+The model was then fit to a Poisson regression model using the 'glm()' function in R, specified as such with a log link function. Specifying a log for our link function is crucial because the Poisson model has a linear relationship between the predictors against log(Response); the link specifies that the response and mean of the distribution has a nonlinear relationship with the predictors. All predictor variables are included in the model minus Total count, which will be analyzed in our next Poisson regression model. 
+
+No variables were removed from the model because all predictor variables were statistically significant at the $\alpha = 0.05$ significance level. 
+
+
+## Motivation
+
+The goal of this analysis was to address one of the study hypotheses that the bike count on the Williamsburg Bridge is dependent on the predictor variables Day of the week, HighTemp, LowTemp, and Precipitation. 
+
+
+## Findings and Interpretations
+
+Our model indicates that weekdays (Monday through Thursday) experience higher bike traffic compared to Friday, while weekends (Saturday and Sunday) see a reduction. This suggests behavioral patterns consistent with commuting during the weekdays and generally suggests that people who bike across the Williamsburg Bridge are generally using it to commute. 
+
+Higher daytime temperatures correlate with increased bike traffic, perhaps due to more favorable cycling conditions, while higher low temperatures (colder nights) show a negative relationship, possibly deterring cyclists. The positive association with high temperatures reflects willingness to cycle under favorable conditions, while a negative association with low temperatures indicates a reluctance to bike due to discomfort or safety reasons related to colder weather. This highlights how temperature, in general, influences how many people choose to commute on bike - people are more likely to commute when the weather conditions are favorable. 
+
+A strong negative relationship with precipitation indicates that worse weather conditions significantly deters cyclists from choosing to bike across the Williamsburg Bridge. Negative weather events tend to cause would-be bikers to choose an alternative form of transport. 
+
+Overall, our Poisson regression model provides valuable insights into the dynamics of bicycle traffic on the Williamsburg Bridge and highlights the impact of temporal and weather-related factors on urban cycling patterns.
+
+
+
+
+# Modeling Williamsburg Rates
+
+We are now creating a poisson regression model for the bike rates to figure out if the predictor variables affect the proportion of bicyclists that use the Williamsburg Bridge out of all East River Bridges.           
+
+For modeling the rate of Williamsburg Bridge crossings in the context of total crossings, we will first compute a new variable representing the proportion of crossings on this bridge relative to the total number of East River bridge crossings. This rate is calculated by dividing the count of cyclists on the Williamsburg Bridge by the aggregate count from all monitored bridges. This proportion, which normalizes the counts by the total opportunity for crossings, will then be used as the response variable in our Poisson regression model, with an offset term included to account for the total volume of bridge traffic, ensuring that our model reflects the rate of crossings rather than mere counts.
+
+
+## Variable Selection
+
+Similar to our first Poisson model, we're starting off with the full model including all predictor variables and only the response that is on the rate. This means that individually the Total count and Williamsburg response variables are not used and that Date is excluded because it merely acts as an observation ID and is thus not a predictor. 
+
+If any predictors are not statistically significant, we will perform variable selection and remove them.
+
+```{r full model rates}
+
+bike_data$Total <- gsub(",", "", bike_data$Total) #remove commas
+bike_data$Total <- as.numeric(bike_data$Total)
+
+full_rmodel <- glm(WilliamsburgBridge ~. - Date - Total, offset = log(Total), family = poisson(link = "log"), data = bike_data)
+
+full_rmodel_coef <- summary(full_rmodel)$coef
+
+kable(full_rmodel_coef, digits = 4, caption = "Full Poisson regression model for the rate of Williamsburg Bridge bicyclists.")
+
+```
+
+<br>
+
+There are 4 variables that aren't statistically significant at the $\alpha = 0.05$ significance level. However, 3 of these variables are dummy variables for day of the week. Removing the insignificant ones is unwise because Monday, Sunday, and Tuesday being insignificant merely explains how those days of the week have no change in proportion of bikers riding the Williamsburg Bridge as compared to the baseline Friday. As a result, we will choose to keep all the insignificant dummy variables to maintain the integrity of the categorical predictor variable. We will remove LowTemp from our model because it isn't a significant numerical predictor variable. 
+
+Therefore the final model for Poisson regression of rates is as follows: 
+
+```{r final model rates }
+
+final_rmodel <- glm(WilliamsburgBridge ~. - Date - Total - LowTemp, offset = log(Total), family = poisson(link = "log"), data = bike_data)
+
+final_rmodel_coef <- summary(final_rmodel)$coef
+
+kable(final_rmodel_coef, digits = 4, caption = "Reduced Poisson regression model for the rate of Williamsburg Bridge bicyclists.")
+
+
+```
+
+
+## Regression Coefficient Interpretation
+
+- Intercept: $\beta_0$ indicates the log count of bike crossings on the Williamsburg Bridge when all other variables in the model are 0; this means that this is the log count on a Friday assuming other predictor variables are 0. However, we're not interested in this value. 
+- Day: Day was split into 6 dummy variables for this model. Friday was chosen as the baseline day of the week. In our model Monday, Sunday, and Tuesday aren't statistically significant; this implies that those days of the week are not significantly different in rate from Friday. The remaining days of the week - Saturday, Wednesday, and Thursday - are all statistically significant with positive coefficients: This means that the rates of Williamsburg Bridge usage on those days are higher than on Friday. Note this is assuming that all other predictors remain constant and the only variation is the day of the week.   
+- High Temp: High Temp has a negative coefficient, which means that having a higher day-high temperature has a negative association with bike rate of the Williamsburg Bridge. A one unit increase in High Temp decreases the rate of Williamsburg Bridge usage compared to total East River bridge crossings. 
+- Precipitation: Precipitation has a positive coefficient, which means that there is a positive association between precipitation and bike rate of the Williamsburg Bridge. This means that a one unit increase in precipitation increases the rate of bicyclists using the Williamsburg Bridge. 
+
+This model is log-linear, so the coefficients represent the expected change in the log count of the response for a one-unit change in the predictor. 
+
+
+## Model Construction
+
+Before data could be analyzed, we need to transform our data into a usable format. The count for Total crossings for all East River Bridges is originally a character variable containing commas. In order to create a generalized linear regression, I transformed this response variable into a number by removing non-numeric characters and transforming the variable. 
+
+The model was then fit to a Poisson regression model using the 'glm()' function in R, specified as such with a log link function. Specifying a log for our link function is crucial because the Poisson model has a linear relationship between the predictors against log(Response); the link specifies that the response and mean of the distribution has a nonlinear relationship with the predictors. 
+
+In order to take the poisson regression model of rates and not just count, we have to put an offset of log(Total count) to account for the varying amounts of exposure or risk periods across observations. We employ this since rate needs to be standardized by a measure of time, population, or area. 
+
+All predictor variables are included in the model minus Total count, which will be analyzed in our next Poisson regression model. Only LowTemp was removed from the model because all other predictor variables were statistically significant at the $\alpha = 0.05$ significance level or dummy variables for a categorical variable; LowTemp was the only variable that was both a numerical predictor and had a p-value larger than 0.05.   
+
+
+## Motivation
+
+The goal of this analysis was to address one of the study hypotheses that the bike rates on the Williamsburg Bridge is independent of the predictor variables Day of the week, HighTemp, LowTemp, and Precipitation. 
+
+
+## Findings and Interpretations
+
+The model reveals a clear pattern of variability across different days. With Friday as the baseline, Saturdays show a significantly higher rate of bicycle crossings, indicating a preference or increased opportunity for cycling during weekends. Conversely, the rates for Sunday, Monday, and Tuesday do not differ significantly from Friday, suggesting similar cycling behaviors on these days. However, Wednesday and Thursday exhibit a significant increase in rates, which may reflect mid-week behaviors or events influencing cycling traffic.
+
+Interestingly, higher daytime temperatures are associated with a slight decrease in the rate of bicycle crossings, a finding that might seem counter intuitive. This could suggest a threshold beyond which higher temperatures become a deterrent to cyclists, possibly due to extreme heat discomfort or the availability of alternative leisure activities during very warm weather.
+
+Contrary to common assumptions, an increase in precipitation is associated with a higher rate of cyclists crossing the bridge. This may indicate a strong commitment to cycling among regular commuters, regardless of weather conditions. It could reflect other unmeasured variables that correlate with both increased precipitation and cycling rates, such as specific events or infrastructural factors.
+
+
+# Quasi-Poisson Rate Model
+
+Quasi-Poisson regression is an extension of the standard Poisson regression model, used primarily to address the issue of overdispersion. Overdispersion occurs when the variance of the count data is greater than the mean, which violates one of the key assumptions of a traditional Poisson model. Quasi-Poisson models handle this by introducing a dispersion parameter that allows the variance to be a function of the mean, effectively scaling the standard errors of the estimates to provide more accurate confidence intervals and p-values.
+
+This approach is particularly useful in practical scenarios where the data exhibit greater variability than the Poisson distribution can account for. Our data is one such example. Bicycle counts across a bridge where factors like weather, traffic disruptions, or social events might lead to more erratic counts than expected.
+
+In our analysis of the Williamsburg Bridge bicycle traffic, the assumption that the variance equals the mean may not hold due to complex urban dynamics and a diverse cycling population. By employing a Quasi-Poisson model, we can adjust for the extra variation, yielding more robust standard errors and thus more reliable statistical inferences. This makes the Quasi-Poisson model an attractive option for ensuring the validity of our findings despite the presence of overdispersion in our count data.
+
+
+## Dispersed Poisson Regression
+
+We make several alterations to make our dispersed poisson regression. Our revised approach to analyzing bicycle traffic involves streamlining the temperature inputs by combining HighTemp and LowTemp into a single predictor, AvgTemp, representing the average temperature. We also simplify our precipitation variable: when there is no precipitation, NewPrecip is set to 0, and for any amount of precipitation, it is set to 1. This binary approach to rainfall allows us to examine its presence rather than quantity. Consequently, our dispersed Poisson regression model will consider three main predictors: the day of the week (Day), the computed average temperature (AvgTemp), and the binary precipitation variable (NewPrecip).
+
+```{r variable adjustment}
+
+bike_data$AvgTemp <- (bike_data$HighTemp + bike_data$LowTemp)/2
+bike_data$NewPrecip <- ifelse(bike_data$Precipitation > 0, 1, 0)
+
+
+```
+
+Consequently, our dispersed Poisson regression model will consider three main predictors: the day of the week (Day), the computed average temperature (AvgTemp), and the binary precipitation variable (NewPrecip).
+
+```{r dispersed reg model}
+
+quasimodel.rates <- glm(WilliamsburgBridge~ Day + AvgTemp + NewPrecip, offset = log(Total), 
+                   family = quasipoisson, data = bike_data)
+pander(summary(quasimodel.rates)$coef, caption = "Quasi-Poisson regression on the rate of Williamsburg Bridge Bike crossings.")
+
+
+
+
+
+
+
+```
+
+This model is a bit troubling as it shows that two of the predictors are not statistically significant. However, the meaning behind these p-values cannot be fully understood unless we also take a look at the estimated dispersion parameter. 
+
+
+
+# Model Selection
+
+We are analyzing our dispersion parameter as a form of goodness of fit test. Analyzing this dispersion parameter is important, especially for quasi-poisson regression because it measures the degree to which data are spread out or clustered around the mean. This value is important as it can correct for overdispersion (if only slightly overdispersed) and it can also explain whether the assumption that the means are equal to variance is violated for a traditional poisson distribution. 
+
+
+```{r dispersion parameter}
+
+ydif=bike_data$WilliamsburgBridge-exp(quasimodel.rates$linear.predictors)  # diff between y and yhat
+prsd = ydif/sqrt(exp(quasimodel.rates$linear.predictors))   # Pearson residuals
+phi = sum(prsd^2)/15          # Dispersion index: 24-9 = 15  
+pander(cbind(Dispersion = phi))
+
+
+
+
+```
+
+
+The dispersion value we got was `r phi`, which is significantly different from 1. This value demonstrates that our poisson models suffer from overdispersion and thus violates the assumption of equality of variance and means. This means that the p-values in the output of the poisson regression model are not reliable. 
+
+Given this substantial overdispersion, it is advisable to continue using the quasi-Poisson model rather than the standard Poisson model. The quasi-Poisson approach adjusts for overdispersion by allowing the variance to be a multiple (in this case, 5.941 times) of the mean, which leads to more reliable standard errors and consequently more valid inference statistics for hypothesis testing and confidence interval construction. This adjustment can provide a better fit for the data and more trustworthy conclusions about our model. 
+
+
+# Final Model
+
+The dispersion index is 5.941, and is very overdispersed. This means we will use the quasi-poisson regression model for our final model. 
+
+The intercept for our model is -1.044, which represents the log rate of bike crossings for our baseline day Friday with no influence from temperature or precipitation. For the one predictor variable that is statistically significant at the $\alpha = 0.05$ significance level, Average Temperature, the regression coefficient of -0.001467 means that the difference of log rate between one degree Fahrenheit increase in average temperature is -0.001467. Taking this value as the power of Euler's number, we get that the rate of a one degree increase in average temperature is $e^{-0.001467} = 0.9985$; this means that increasing average temperature by one degree decreases rate of Williamsburg Bridge bike crossing by 0.15%. 
+
+Since all dummy variables are not statistically significant, this means that day of the week makes no difference on the rate bicyclists take Williamsburg Bridge compared to the remaining East River bridges. Similarly, because our new variable New Precipitation, which measures the binary event of whether there is or isn't precipitation on that given day, isn't statistically significant, this means that the rate of which bikers bike on the Williamsburg Bridge compared to the other East River bridges does not change based off the presence or absence of precipitation. 
+
+
+
+# Graphical Comparison
+
+The inferential tables from our Poisson regression analyses have provided us with a numerical understanding of how bike rates may vary with different days and weather conditions. To visually explore these potential variations, we proceed to graphically represent the relationship between bike rates, days of the week, and weather conditions.
+
+Building on our established regression model, we express the bike rate as a function of the day of the week and weather conditions using the formula:
+
+$log-rate = \beta_0 + \beta_{Monday} * Monday + ... + \beta_{NewPrecip} * NewPrecip$
+
+We then transform this log-rate into an actual rate by taking its exponential. This rate can be calculated for each day of the week under different weather scenarios, which are characterized by the average temperature and whether there was precipitation or not.
+
+For instance, the exponential of the intercept gives us the base bike rate for a typical Friday with average weather conditions. By adding the coefficients for the other days and weather conditions, we can determine the bike rate for each scenario. 
+
+
+```{r graphical comparison}
+
+# Friday
+Friday = c(exp(-1.044), exp(-1.044-0.001467),   
+               exp(-1.044+0.01366))
+
+# Monday
+Monday = c(exp(-1.044+0.001815), exp(-1.044+0.001815-0.001467),   
+               exp(-1.044+0.001815+0.01366))
+
+# Saturday
+Saturday = c(exp(-1.044+0.03454), exp(-1.044+0.03454-0.001467),   
+               exp(-1.044+0.03454+0.01366))
+
+# Sunday
+Sunday = c(exp(-1.044+0.003457), exp(-1.044+0.003457-0.001467),   
+               exp(-1.044+0.003457+0.01366))
+
+# Thursday
+Thursday = c(exp(-1.044+0.0237), exp(-1.044+0.0237-0.001467),   
+               exp(-1.044+0.0237+0.01366))
+
+# Tuesday
+Tuesday = c(exp(-1.044+0.02529), exp(-1.044+0.02529-0.001467),   
+               exp(-1.044+0.02529+0.01366))
+
+# Wednesday
+Wednesday= c(exp(-1.044+0.01835), exp(-1.044+0.01835-0.001467),   
+               exp(-1.044+0.01835+0.01366))
+
+
+minmax = range(c(Monday,Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday))
+
+
+
+plot(1:3, Friday, type="l", lty =1, col="red", xlab="", 
+               ylab="Bike Rate", xlim=c(1,3), ylim=c(0.34, 0.38), axes=FALSE )
+axis(2)
+axis(1, labels=c("AvgTemp","NewPrecip"), at = 1:2)
+points(1:3,Friday, pch=19, col="red")
+##
+lines(1:3, Saturday, lty =2, col="blue")
+points(1:3, Saturday, pch=20, col="blue")
+##
+lines(1:3, Sunday, lty =3, col="purple")
+points(1:3, Sunday, pch=21, col="purple")
+###
+lines(1:3, Monday, lty =4, col="mediumvioletred")
+points(1:3, Monday, pch=22, col="mediumvioletred")
+##
+lines(1:3, Tuesday, lty =5, col="green")
+points(1:3, Tuesday, pch=23, col="green")
+##
+lines(1:3, Wednesday, lty =6, col="orange")
+points(1:3, Wednesday, pch=24, col="orange")
+##
+lines(1:3, Thursday, lty =7, col="turquoise")
+points(1:3, Thursday, pch=25, col="turquoise")
+##
+
+
+legend("topleft", c("Friday","Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday" ),
+                  pch=19:22, lty=1:7,  bty="n", 
+        col=c("red", "blue", "purple", "mediumvioletred", "green", "orange", "turquoise"))
+
+
+
+
+
+
+
+
+
+
+
+```
+
+The parallel nature of the lines indicates that the effect of temperature and precipitation on bike rates is consistent across different days of the week. This means that regardless of the day, an increase or decrease in Average Temperature or (New) Precipitation is associated with a uniform change in bike rates. The slopes of these lines are determined by the coefficients of Average Temperature and New Precipitation in our Poisson regression model.
+
+
+In addition, because all of the lines are parallel and do not converge or diverge suggests that the impact of our numerical predictors do not interact with the day of the week. The difference in bike rates by day of the week remains constant regardless of changes in average day temperature and presence of precipitation. 
+
+
+# Summary 
+
+Our analytical journey, which now includes the exploration through a third model – the quasi-Poisson regression – has broadened our understanding of cycling patterns across the Williamsburg Bridge. This model, chosen to account for overdispersion observed in our data, allowed us to validate the appropriateness of our statistical approach in capturing the nuances of bike traffic counts. 
+
+The quasi-Poisson model substantiated our initial objectives and hypotheses. It confirmed that bicycle traffic is indeed affected by the day of the week, with weekdays showing a distinct pattern compared to the weekend, and that both temperature and precipitation influence cycling activity. Notably, the quasi-Poisson model's findings determined that day of the week and precipitation did not significantly alter the rate at which bikers crossed the Williamsburg compared to the remaining East River bridges. 
+
+In light of the research questions and objectives set forth at the beginning of our study, the analyses suggest that our objectives have been largely met. The models enabled us to identify patterns in daily and weekly bike traffic, examine the impact of temperature and precipitation, and assess the fit of Poisson distribution models for discrete biking data. Comparing the Poisson and quasi-Poisson models, we examined the validity of these statistical tools in the face of overdispersion, enhancing the robustness of our conclusions.
+
+There were many insights gained by our quasi-Poisson model and comparing them to our two models relying on traditional Poisson regression models. It validates the initial hypotheses regarding the dependence of cycling numbers on temporal and weather variables, and it also suggests that the proportion of cyclists choosing the Williamsburg Bridge is not merely a function of these factors. This comprehensive study, which includes the quasi-Poisson adjustment, underlines the utility of different modeling approaches when dealing with real-world data where assumptions of standard models may not hold true.
+
+# References
+
+Gupta, D. (2018). *Applied Analytics through Case Studies Using SAS and R*. APress.
+
+Ciaburro G. (2018). *Regression Analysis with R: Design and Develop Statistical Nodes to Identify Unique Relationships Within Data at Scale*. Packt Publishing. 
+
+
+
