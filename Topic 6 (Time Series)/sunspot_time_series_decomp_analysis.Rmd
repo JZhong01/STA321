@@ -1,0 +1,392 @@
+---
+title: "Case Study: Time Series Forecasting of Monthly Sunspots"
+author: "Joshua Zhong"
+date: "01/17/2024"
+output:
+ html_document:
+  toc: yes
+  toc_depth: 4
+  toc_float: yes
+  fig_width: 6
+  fig_caption: yes
+  number_sections: yes
+  theme: readable
+  editor_options:
+  chunk_output_type: console
+---
+
+
+```{=html}
+
+<style type="text/css">
+
+/* Cascading Style Sheets (CSS) is a stylesheet language used to describe the presentation of a document written in HTML or XML. it is a simple mechanism for adding style (e.g., fonts, colors, spacing) to Web documents. */
+
+h1.title {  /* Title - font specifications of the report title */
+  font-size: 24px;
+  color: DarkRed;
+  text-align: center;
+  font-family: "Gill Sans", sans-serif;
+}
+h4.author { /* Header 4 - font specifications for authors  */
+  font-size: 20px;
+  font-family: system-ui;
+  color: DarkRed;
+  text-align: center;
+}
+h4.date { /* Header 4 - font specifications for the date  */
+  font-size: 18px;
+  font-family: system-ui;
+  color: DarkBlue;
+  text-align: center;
+}
+h1 { /* Header 1 - font specifications for level 1 section title  */
+    font-size: 22px;
+    font-family: "Times New Roman", Times, serif;
+    color: navy;
+    text-align: left;
+}
+h2 { /* Header 2 - font specifications for level 2 section title */
+    font-size: 20px;
+    font-family: "Times New Roman", Times, serif;
+    color: navy;
+    text-align: left;
+}
+
+h3 { /* Header 3 - font specifications of level 3 section title  */
+    font-size: 18px;
+    font-family: "Times New Roman", Times, serif;
+    color: navy;
+    text-align: left;
+}
+
+h4 { /* Header 4 - font specifications of level 4 section title  */
+    font-size: 18px;
+    font-family: "Times New Roman", Times, serif;
+    color: darkred;
+    text-align: left;
+}
+
+body { background-color:white; }
+
+.highlightme { background-color:yellow; }
+
+p { background-color:white; }
+
+</style>
+```
+
+```{r setup, include=FALSE}
+
+   sunspots = read.csv("https://raw.githubusercontent.com/JZhong01/STA321/main/Topic%206%20(Time%20Series)/SN_m_tot_V2.0.csv", 
+   header = TRUE)
+   
+  options(scipen = 2)
+
+   library(knitr)
+   library(leaflet)
+   library(EnvStats)
+   library(MASS)
+   library(phytools)
+   library(boot)
+   library(psych)
+   library(car)
+   library(dplyr)
+   library(kableExtra)
+   library(pROC)
+   library(pander)
+   library(forecast)
+
+# Specifications of outputs of code in code chunks
+knitr::opts_chunk$set(
+	echo = FALSE,
+	message = FALSE,
+	warning = FALSE,
+	comment = FALSE,
+	results = TRUE, 
+	digits = 4
+)
+   
+```
+
+
+# Introduction
+
+This dataset presents the monthly mean total sunspot numbers from January 1749 up to the last elapsed month, with provisional values for recent 3 months. The monthly mean is calculated as the arithmetic mean of daily total sunspot numbers for each calendar month. The data extends back to 1749, the year from which consistent daily observations became available, allowing for reliable monthly averages. Prior to 1749, only yearly means are present due to the sparsity of data.
+
+Missing values in the dataset are denoted by a value of -1. The dataset includes standard deviation values derived from daily observations, providing a measure of variability and the standard error on the monthly means, allowing for an assessment of the precision of the data. In addition, February 1824 is an exception in this historical record; lacking daily values, its monthly mean was interpolated from neighboring months by the compiler, R. Wolf. 
+
+
+## Data cleaning
+
+To get an idea of what our data set looks like, here are the first 6 observations in the data set. 
+
+```{r head of bike data}
+
+pander(head(sunspots), caption = "Currently needs formatting")
+
+
+```
+
+This data needs to be reformatted as it currently is 3299 observations of a single variable. To transform this, we will separate the variable delimited by semi-colons. The new data frame looks much better: 
+
+
+```{r new sunspot data}
+
+sunspots = read.csv("https://raw.githubusercontent.com/JZhong01/STA321/main/Topic%206%20(Time%20Series)/Updated_Sunspot_Data.csv", 
+   header = TRUE)
+
+pander(head(sunspots), caption = "Properly formatted data")
+
+
+```
+
+
+
+## Data Set Description
+
+This data set records monthly mean and standard deviation for daily sunspot observations compiled into a per calendar month basis. 
+ 
+
+The link to the raw CSV file in posted on GitHub:  https://raw.githubusercontent.com/JZhong01/STA321/main/Topic%206%20(Time%20Series)/Updated_Sunspot_Data.csv.
+
+- Year: This records the year of an observation based on the Gregorian calendar date. 
+- Month: This records the month of an observation based on the Gregorian calendar date. 
+- Date: This is the date in the form of a fraction of year based on the middle of the month. We will largely ignore this column. 
+- Mean Sunspots: Monthly mean total sunspot number, calculated by taking total sunspot observations divided by total days in the month. 
+- Mean Standard Deviation: Monthly mean standard deviation of input sunspot number from individual stations. 
+- Observation Count: This records the number of observations in each given month - used to calculate the monthly mean observed sunspot count. 
+- Provisional Marker: This denotes whether the data is definitive (confirmed) or still provisional and subject to possible revision. 1 marks definitive, 0 marks provisional. 
+
+This data set is nearly comprehensive except for a missing monthly observation as well as some missing values towards the beginning of the data set. Since we're concerned with the 200 most recent observations, this is not something that we'll encounter. 
+
+
+# Research Question
+
+Research Question: Given the historical recent trends in sunspot activity, can we predict future sunspot numbers, which will help us understand their potential impact on global climate patterns?
+
+Secondary objectives for this case study are as follows: 
+
+- To analyze the trends in sunspot numbers from the 200 most recent observations to the present to identify any patterns or cycles in sunspot activity.
+- To forecast future sunspot numbers using time series analysis techniques, taking into account provisional data and potential revisions.
+
+
+The hypotheses of the study are that: 
+
+- Historical sunspot numbers exhibit a significant periodicity or pattern that can be used to predict future sunspot activity with a reasonable degree of accuracy.
+- There has been a significant change in the variability of monthly sunspot numbers over time, which could indicate changes in the sun's behavior or the precision of observational methods. 
+
+
+
+# Time Series 
+
+Time series analysis is particularly well-suited for our sunspot number data set because it involves observations recorded sequentially over time. Time Series data is typically characterized by trends, seasonality, and error/residual components. By employing time series analysis, we aim to dissect these underlying patterns: the long-term trend shows the general movement of sunspot numbers over the years, while the seasonal component would reveal any regular fluctuations within a given period (e.g., an 11-year solar cycle). The irregular component, or error term, encapsulates random variations and anomalies not explained by trend or seasonality.
+
+Decomposition of the time series into these constituent elements enables a clearer understanding of the behavior of sunspot activity and aids in identifying any anomalies or shifts in patterns. Once we have isolated these components, we can use them to construct models that forecast future sunspot numbers. Trend and seasonality can inform predictive models, while understanding the error term can improve the accuracy and reliability of our forecasts. By anticipating future solar activity, we can contribute valuable insights into potential solar impacts on Earth's climate and space weather-related phenomena.
+
+
+## Define Time Series Object
+
+The code snippet provided defines a time series object, sunspots_ts, which represents the monthly mean sunspot numbers for a specific subset of the sunspots data frame. This subset spans from the 3100th to the 3300th observation, capturing the 201 most recent observations. The start parameter for the time series is dynamically set to correspond to the year and month of the 3100th observation in the sunspots dataset, ensuring that the time series aligns with the actual chronological order of the data. The frequency parameter is set to 12 to reflect the monthly periodicity of the data. The resulting time series object is then plotted with the given labels and title, showing the variation in mean monthly sunspot numbers for the selected period.
+
+```{r time series object, echo = TRUE}
+
+sunspot_200 <- sunspots[3100:3300,]
+
+sunspots_ts <- ts(sunspot_200$Mean.Sunspots, start=c(sunspots$Year[3100], sunspots$Month[3100]), frequency=12)
+
+par(mar = c(2,2,2,2))
+
+plot(sunspots_ts, main = "Mean Monthly sunspots from April 2007 to Present", ylab = "Month", xlab = "Mean Monthly sunspot")
+
+```
+
+# Decomposition
+
+
+To forecast data, we will be using decomposition methods. Decomposition in time series analysis refers to the process of breaking down observed data into 3 distinct components to identify and isolate systematic patterns and structures. These 3 components are trend, seasonality, and residual effects. Trend represents long-term progression, seasonality reflects regular and predictable cycles, and residual or error effects encompass the remaining random error due to chance. Decomposition allows us to identify and separate the data into these categories to better grasp the underlying behaviors in the data, which helps improve forecasting accuracy. There are 2 methods of decomposition that we'll be exploring in this case study: Classical and STL Decomposition. 
+
+## Classical Decompositiion
+
+Classical decomposition splits a time series into a trend, seasonal, and irregular component using moving averages. It typically assumes that the seasonal component repeats from year to year and that the pattern does not change over time. There are two types of classical decomposition:
+
+- Additive Model: $Y_t = T_t + S_t + R_t$ where $Y_t$ is the data, $T_t$ represents the trend, $S_t$ represents the seasonal component and $R_t$ is the residual. 
+- Multiplicative Model: $Y_t = T_t * S_t * R_t$ where $Y_t$ is the data, $T_t$ represents the trend, $S_t$ represents the seasonal component and $R_t$ is the residual. 
+
+In classical decomposition, the trend is usually estimated by applying a moving average filter, and the seasonal component is computed by averaging the de-trended data for each season. The remainder is then obtained by subtracting (for additive) or dividing (for multiplicative) the estimated trend and seasonal components from the original data.
+
+
+```{r classical decomp}
+
+cls.decomp = decompose(sunspots_ts)
+par(mar=c(2,2,2,2))
+plot(cls.decomp, xlab="")
+
+
+
+
+```
+
+## STL Decomposition
+
+STL Decomposition, which stands for Seasonal and Trend decomposition using Loess, is an approach that uses local regression (Loess) to estimate the trend and seasonal components. It excels in estimating non-linear trends within a time series, leveraging the flexibility of LOESS to adjust to complex patterns beyond fixed seasonal variations by not assuming a fixed seasonal variation. In addition, it also benefits from being more robust and is non-parametric due to the flexibility and fewer assumptions brought on by Loess. 
+
+```{r stl decomp}
+
+stl.decomp=stl(sunspots_ts, s.window = 12)
+par(mar=c(2,2,2,2))
+plot(stl.decomp)
+
+
+
+
+```
+
+## Using STL Decomposition of Additive Time Series
+
+Upon looking at the 2 time series plots, a decision was made to go with STL decomposition for an additive time series. 
+
+We're choosing STL instead of Classical Decomposition because it's more flexible and robust; this helps since our data has a non-linear trend. It is also better able to handle outliers. 
+
+We're choosing multiplicative decomposition because the seasonal variations are roughly constant over time. If the seasonal variations were to increase or decrease alongside the trend, we would rather choose multiplicative time series. 
+
+
+# Forecasting
+
+In order to forecast we begin with the division of the time series data into training and testing sets. The training set is used to fit the model, while the testing set is reserved to evaluate the model's predictive performance. By using different sample sizes for the training set, we can assess how the amount of historical data impacts the model's accuracy. For instance, larger training sets may capture more of the underlying patterns, potentially leading to more accurate forecasts. However, there's also a risk of overfitting, where the model learns the noise in the training data rather than the underlying signal, which can negatively impact out-of-sample predictions.
+
+## Training and Testing Data
+
+We will reserve the last 12 months of data for testing. The idea is that we want to assess the predictability based on a one-year cycle. We  will have 4 training set sizes, n = 189, 140, 90, and 50. The last 12 observations will be used to calculate errors. 
+
+
+```{r train data, echo = TRUE}
+
+
+##
+train.data01 = sunspot_200[1:(201-12), 4]
+train.data02 = sunspot_200[44:(201-12), 4]
+train.data03 = sunspot_200[94:(201-12), 4]
+train.data04 = sunspot_200[142:(201-12), 4]
+## last 7 observations
+test.data = sunspot_200[(201-11):201,4]
+##
+train01_ts = ts(train.data01, frequency = 12, start = c(2007, 4))
+train02_ts = ts(train.data02, frequency = 12, start = c(2010, 11))
+train03_ts = ts(train.data03, frequency = 12, start = c(2015, 1))
+train04_ts = ts(train.data04, frequency = 12, start = c(2019, 1))
+##
+stl01 = stl(train01_ts, s.window = 12)
+stl02 = stl(train02_ts, s.window = 12)
+stl03 = stl(train03_ts, s.window = 12)
+stl04 = stl(train04_ts, s.window = 12)
+## Forecast with decomposing
+fcst01 = forecast(stl01,h=12, method="naive")
+fcst02 = forecast(stl02,h=12, method="naive")
+fcst03 = forecast(stl03,h=12, method="naive")
+fcst04 = forecast(stl04,h=12, method="naive")
+
+
+
+
+
+```
+
+## Performing Error Analysis
+
+Error analysis plays a crucial role in this process. It involves quantifying the forecast accuracy using metrics such as the Mean Absolute Error (MAE), Mean Squared Error (MSE), or Mean Absolute Percentage Error (MAPE). By applying these metrics to the testing set, we can objectively measure the model's performance. Analyzing forecast errors can also provide insights into whether the model systematically overestimates or underestimates the time series, guiding further refinement of the model. Additionally, error analysis can reveal whether the model's performance degrades over longer forecast horizons, which is crucial for understanding the model's reliability for long-term forecasting.
+
+```{r error analysis}
+
+
+## To compare different errors, we will not use the percentage for MAPE
+PE01=(test.data-fcst01$mean)/fcst01$mean
+PE02=(test.data-fcst02$mean)/fcst02$mean
+PE03=(test.data-fcst03$mean)/fcst03$mean
+PE04=(test.data-fcst04$mean)/fcst04$mean
+###
+MAE1 = mean(abs(test.data-fcst01$mean))
+MAE2 = mean(abs(test.data-fcst02$mean))
+MAE3 = mean(abs(test.data-fcst03$mean))
+MAE4 = mean(abs(test.data-fcst04$mean))
+###
+MAPE1 = mean(abs(PE01))
+MAPE2 = mean(abs(PE02))
+MAPE3 = mean(abs(PE03))
+MAPE4 = mean(abs(PE04))
+###
+E1=test.data-fcst01$mean
+E2=test.data-fcst02$mean
+E3=test.data-fcst03$mean
+E4=test.data-fcst04$mean
+##
+MSE1=mean(E1^2)
+MSE2=mean(E2^2)
+MSE3=mean(E3^2)
+MSE4=mean(E4^2)
+###
+MAE=c(MAE1, MAE2, MAE3, MAE4)
+MSE=c(MSE1, MSE2, MSE3, MSE4)
+MAPE=c(MAPE1, MAPE2, MAPE3, MAPE4)
+accuracy=cbind(MAE=MAE, MSE=MSE, MAPE=MAPE)
+row.names(accuracy)=c("n.189", "n.146", "n. 96", "n. 48")
+kable(accuracy, digits = 3, caption="Error comparison between forecast results with different sample sizes")
+
+
+
+
+
+
+
+
+```
+
+
+## Error Curves
+
+These errors seem unusually large. For now, we'll ignore them and look at the error curves to see which sample size did best in prediction. 
+
+
+```{r error curves}
+
+labs = c("n.189", "n.146", "n. 96", "n. 48")
+
+plot(1:4, MSE, type="b", col="darkred", ylab="MSE Error", xlab="Sample Size",
+     ylim=c(min(MSE)*0.9, max(MSE)*1.1),xlim = c(0.5,4.5), main="MSE Error Curve", axes=FALSE)
+axis(1, at=1:4, labels=labs, pos=min(MSE)*0.9) # Adjust 'pos' if necessary
+axis(2)
+text(1:4, MSE+0.03, as.character(round(MSE,4)), col="darkred", cex=0.7)
+box()
+
+plot(1:4, MAPE, type="b", col="blue", ylab="MAPE Error", xlab="Sample Size",
+     ylim=c(min(MAPE)*0.9, max(MAPE)*1.1),xlim = c(0.5,4.5), main="MAPE Error Curve", axes=FALSE)
+axis(1, at=1:4, labels=labs, pos=min(MAPE)*0.9) # Adjust 'pos' if necessary
+axis(2)
+text(1:4, MAPE+0.03, as.character(round(MAPE,4)), col="blue", cex=0.7)
+box()
+```
+
+ Both the MSE and MAPE error curves suggest that the largest sample size of 189 did the best at predicting. This generally makes sense as you have a larger picture of the underlying trends in the time series data as it spans a wider range of time. 
+
+
+
+
+# Summary
+
+In our case study, the STL smoothing technique, while valuable for decomposing time series data and revealing underlying patterns, did not result in satisfactory forecasting accuracy. The results indicated unusually high Mean Squared Error (MSE) and Mean Absolute Percentage Error (MAPE), which suggest limitations in the forecasting ability of the model employed. One contributing factor could be the recent sharp increase in the trend component of the time series, as observed in the STL decomposition plot. This sudden spike may represent an atypical behavior in the data, not well-captured by the relatively simpler forecasting approaches based on smoothing.
+
+There are many limitations to our study. The time series data may contain non-linear components or sudden shifts that are not adequately accounted for by LOESS smoothing within the STL framework. Furthermore, the underlying assumptions of the STL decomposition, such as linearity and homoscedasticity, may not hold true for the entire span of the data, especially if other external factors may affect the data. 
+
+The high error metrics—MSE and MAPE—could be a reflection of the model's failure to adapt to the recent surge in values, suggesting that the forecasting model may not have fully captured the dynamics of the system, particularly during periods of abrupt changes. This underscores the importance of incorporating models capable of handling sudden changes in trend and variance such as exponential smoothing models. It also highlights the importance of hyper-parameter tuning to better optimize the model's performance. 
+
+In conclusion, this study is just a part of the iterative process of model development and refinement. It's clear that there's a need for more sophisticated methods in order to capture the complex patterns in our time series data. 
+
+# References
+
+Gupta, D. (2018). *Applied Analytics through Case Studies Using SAS and R*. APress.
+
+Ciaburro G. (2018). *Regression Analysis with R: Design and Develop Statistical Nodes to Identify Unique Relationships Within Data at Scale*. Packt Publishing. 
+
+"Sunspot data from the World Data Center SILSO, Royal Observatory of Belgium, Brussels" 
+
+
