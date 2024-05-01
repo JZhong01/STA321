@@ -106,6 +106,10 @@ if (!require("summarytools")) {
    library(summarytools)
 }
 
+if (!require("EBImage")) {
+   install.packages("EBImage")
+   library(EBImage)
+}
 
 # Specifications of outputs of code in code chunks
 knitr::opts_chunk$set(
@@ -242,8 +246,67 @@ However, the Q-Q plot isn't linear meaning that the assumption of normality is i
 
 We will be using bidirectional stepwise regression to create our second candidate model. Stepwise regression is a method of automatic variable selection used in statistical modeling, particularly useful when dealing with data sets that contain multiple potential predictors. This method simplifies the model-building process by systematically adding or removing variables based on specific criteria and evaluating the statistical significance of each model iteration. Bidirectional stepwise regression means that we'll be adding and removing predictor variables from the model in an iterative fashion and eventually leaves us with only the appropriate candidate variables. 
 
+```{r stepwise model}
+
+step_model <- stepAIC(initial_model, direction = "both", trace = FALSE)
+
+kable(summary(step_model)$coef, caption = "Statistics of Regression Coefficients", digits = 2, scientific = TRUE)
 
 
+```
+
+Running a bidirectional Stepwise regression removed MfgPlaytime from the function, which resulted in an improved model - increasing the F-statistic from F(5,16389) = 1323 to F(4,16390) = 1654. 
+
+Let's look now at the Residual plots. 
+
+```{r step model resid analysis}
+
+par(mfrow = c(2,2))
+plot(step_model)
+
+```
+
+The conditions seem to be satisfied . The Residuals vs Fitted plots shows that the condition of linearity is confirmed. The Scale-Location plot shows that constant variance is satisfied. The Residuals vs Leverage plot shows that there are no more influential points. The Q-Q plot shows a slight skew, but the sample size seems large enough for the central limit theorem to apply. 
+
+## Box-Cox Transformed Model
+
+The Box-Cox transformation is a statistical technique used to stabilize variance and normalize data, which is particularly useful for enhancing the performance of models that assume normality and homoscedasticity (constant variance). This transformation applies a power function to the response variable, parameterized by a lambda (λ) value, which determines the specific transformation applied. 
+
+When λ equals zero, the Box-Cox transformation becomes a natural logarithm transformation, and for other values, it modifies the data by raising it to a power specified by λ. By transforming the data in this way, the Box-Cox transformation can make skewed data more symmetric and normally distributed, improving the accuracy and validity of statistical analyses and predictive models. 
+
+```{r boxcox transform}
+
+boxcox(AvgRating~., data = new_games, lambda = seq(1.5,2.1, length = 10))
+
+```
+
+
+Our plot demonstrates that lambda is roughly 2, which means that we'll be taking our response variable, Average Rating, to the second power. 
+
+We'll apply this transformation to both the original model as well as the stepwise model. 
+
+
+```{r boxcox models}
+
+bc_model <- lm((AvgRating)^2 ~., data = new_games)
+summary(bc_model)
+
+bc_model2 <- lm((AvgRating)^2 ~. - MfgPlaytime, data = new_games)
+summary(bc_model2)
+
+
+```
+
+The Box-Cox transformation on the stepwise model performed the best with a F-statistic of F(4, 16390) = 1781. 
+
+Looking at our box-cox transformed stepwise model's residual plots show that all conditions are met. 
+
+```{r final model resid analysis}
+
+par(mfrow = c(2,2))
+plot(bc_model2)
+
+```
 
 
 
