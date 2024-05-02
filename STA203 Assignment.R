@@ -106,10 +106,6 @@ if (!require("summarytools")) {
    library(summarytools)
 }
 
-if (!require("EBImage")) {
-   install.packages("EBImage")
-   library(EBImage)
-}
 
 # Specifications of outputs of code in code chunks
 knitr::opts_chunk$set(
@@ -307,6 +303,42 @@ par(mfrow = c(2,2))
 plot(bc_model2)
 
 ```
+
+
+## Interaction Term Model 
+
+Next, we're exploring the possibility of any interaction term or polynomial terms. We're attempting to use MaxPlayers and MinPlayers as an interaction term as they potentially have an impact on one another. We're creating 3 interaction term models with and without the Box-Cox Transformation as well as with and without the MfgPlaytime, which was removed when we conducted stepwise regression. 
+
+```{r interaction model}
+
+int_model <- lm(AvgRating ~ MaxPlayers*MinPlayers + GameWeight + ComAgeRec + MfgPlaytime, data = new_games)
+
+int_model2 <- lm((AvgRating)^2 ~ MaxPlayers*MinPlayers + GameWeight + ComAgeRec + MfgPlaytime, data = new_games)
+
+int_model3 <- lm((AvgRating)^2 ~  MaxPlayers*MinPlayers + GameWeight + ComAgeRec, data = new_games)
+
+summary(int_model)
+summary(int_model2)
+summary(int_model3)
+
+
+```
+
+Looking at all three models, we see that they perform worse than all prior models, showing us that adding an interaction term makes the model perform worse. As a result, we choose to not have an interaction term or polynomial term in our final model.   
+
+
+# Results and Conclusions
+
+*Talk about the model with the BEST F-statistic.*
+
+
+# Limitations and Suggestions
+
+* Talk about the limitations in the explanatory variables Professor McClintock wanted us to explore, mainly that they aren't the best*
+
+
+
+
 
 
 
