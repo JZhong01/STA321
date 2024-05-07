@@ -1,7 +1,7 @@
 ---
 title: "Analyzing predictors that make a Board Game popular"
-author: "Joshua Zhong"
-date: "04/30/2024"
+author: "Joshua Zhong, Ava DeStefano, Nate Rollman, Ryan Gorman"
+date: "05/07/2024"
 output:
  html_document:
   toc: yes
@@ -327,14 +327,39 @@ summary(int_model3)
 Looking at all three models, we see that they perform worse than all prior models, showing us that adding an interaction term makes the model perform worse. As a result, we choose to not have an interaction term or polynomial term in our final model.   
 
 
+
 # Results and Conclusions
 
-*Talk about the model with the BEST F-statistic.*
+After evaluating various models, the Box-Cox transformed stepwise regression model provided the best fit for the data, with an F-statistic of 1781. This model excluded the MfgPlaytime variable, which improved the model's performance significantly compared to the initial full model. The stepwise regression helped refine the model by systematically removing predictors that were not significant contributors to the response variable, AvgRating.
+
+The analysis revealed several key insights:
+
+- Game Complexity (GameWeight): There is a moderate positive correlation between game complexity and rating, indicating that more complex games tend to receive higher ratings. This may suggest that the target audience of BGG consists of enthusiasts who appreciate challenging games.
+
+- Minimum and Maximum Players: These variables showed weak correlations with other predictors and did not significantly contribute to the variability in game ratings. Interaction between these variables and other predictors did not improve the model either.
+- Recommended Age (ComAgeRec): The community's recommended age for players was a significant predictor in the final model. This could imply that games intended for older audiences are rated higher due to their thematic complexity or challenging mechanics.
+
+
+The Box-Cox transformation on the response variable AvgRating improved model performance by stabilizing variance and enhancing normality, demonstrating the importance of preprocessing and transformation in statistical modeling.
 
 
 # Limitations and Suggestions
 
-* Talk about the limitations in the explanatory variables Professor McClintock wanted us to explore, mainly that they aren't the best*
+Several limitations must be considered:
+
+- Limited Scope of Variables: The chosen variables might not comprehensively capture all aspects influencing a game's rating. Factors like whether or not the board game was kick-started or the ratio between owners of the game and those who want to own the game. 
+
+- Community Bias: The data source, BGG, primarily caters to enthusiasts who may have biases towards specific game types or complexities. This community's ratings may not represent broader public opinion.
+
+- Non-Normal Data Distribution: Despite transformations, some variables remained skewed, potentially affecting model performance. Additionally, the ratings might contain some subjective biases that can't be accounted for entirely in a model.
+
+- Influence of Outliers: Although some attempts were made to remove outliers, the data may still contain influential points affecting model accuracy. Further analysis could delve into removing extreme outliers based on robust statistical techniques.
+
+
+Future research could benefit from incorporating a more comprehensive set of predictors, such as user demographics, marketing strategies, or data from other platforms. Testing different modeling techniques like random forests or deep learning may also yield better predictions by capturing more complex relationships in the data.
+
+
+
 
 
 
