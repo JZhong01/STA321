@@ -4,16 +4,18 @@ author: "Joshua Zhong"
 date: "12/28/2023"
 output:
  html_document:
- toc: yes
- toc_depth: 4
- toc_float: yes
- fig_width: 6
- fig_caption: yes
- number_sections: yes
- theme: readable
-editor_options:
- chunk_output_type: console
+  toc: yes
+  toc_depth: 4
+  toc_float: yes
+  fig_width: 6
+  fig_caption: yes
+  number_sections: yes
+  theme: readable
+  editor_options:
+  chunk_output_type: console
+  code_folding: hide
 ---
+
 
 
 ```{=html}
@@ -83,6 +85,7 @@ p { background-color:white; }
    
   options(scipen = 2)
 
+   library(ggplot2)  
    library(knitr)
    library(leaflet)
    library(EnvStats)
@@ -99,15 +102,30 @@ knitr::opts_chunk$set(
 	echo = TRUE,
 	message = FALSE,
 	warning = FALSE,
-	comment = FALSE,
 	results = TRUE, 
+	collapse = TRUE,
 	digits = 4
 )
    
 ```
 
+# Abstract
 
-# 1 Data set Description
+This statistical report explores the dynamics of California house prices, utilizing a modified version of the California Housing data set derived from the 1990 census data. Employing methodologies such as K-means clustering, Box-Cox transformations, and bootstrapping, this analysis aims to uncover nuanced patterns and relationships within this housing market.
+
+Key predictors that were analyzed spanned geographical location, housing characteristics, demographic details, and economic indicators of US Census block groups (i.e. neighborhoods grouped by the Census Bureau that will act as our observational unit ) and their inhabitants. 
+
+The study begins with exploratory data analysis, employing Box-Cox transformations to address issues of non-normality and heteroscedasticity in the data set. Subsequently, a robust bootstrapping approach is applied across cases then residuals, offering a comprehensive assessment given our inability to make assumptions about the underlying distribution. Through these techniques, we seek to provide a more accurate understanding of the factors influencing house prices across California's diverse census block groups.
+
+# Introduction
+
+## Motivation
+
+The motivation behind undertaking this comprehensive data analysis of California house prices lies in the quest to unravel the intricate dynamics influencing one of the most pivotal aspects of the state's economy – its real estate market. As housing affordability and market trends continue to be of paramount importance for residents, policymakers, and real estate professionals alike, there exists a compelling need to delve into the underlying factors that shape housing prices across diverse census block groups.
+
+This analysis seeks to provide actionable insights for informed decision-making in various spheres. By applying advanced statistical techniques such as Box-Cox transformations and bootstrapping, we aim to not only mitigate data challenges but also enhance the robustness and accuracy of our findings. The significance of this study is amplified by its foundation in the 1990 California census data, offering a historical perspective that enriches our understanding of how socio-economic and spatial factors have shaped the housing landscape over time.
+
+## Data set Description
 
 The data set was found on Kaggle. It includes information gathered from various block groups in California during the 1990 Census. The U.S. Census Bureau uses the block group as the smallest geographical unit, typically consisting of 600 to 3000 people. Each observation in the data set represents one block group and comprises an average of 1425.5 individuals in a geographically compact area. 
 
@@ -125,38 +143,187 @@ The data set contains 20640 observations of 9 dependent variables and one indepe
 - OceanProximity(X9): Location of the house to an ocean or sea, displayed as a categorical variable
 
 
-# 2 Research Question
+## Research Question
 
-The primary objective of this analysis is to identify the association between median house value of California houses and key predictor variables that describe geographical location, housing characteristics, demographic details, and economic indicators of block groups and their inhabitants. 
-
-
-# 3 Exploratory Data Analysis
-
-The original data set contains 9 independent variables and 1 dependent variable. However, some modifications need to be made as not all the variables are useful in describing the association with median house values. 
+The primary objective of this analysis is to identify the primary factors that influence house prices amongst California census block groups. 
 
 
-## 3.1 Geographic Location
+Practical questions that this research aims to explore are as follows: 
 
-There are 3 variables that describe geographic locations of houses: longitude, latitude, and ocean_proximity. A plot was first created that plots house locations by longitude and latitude. 
+- What socioeconomic factors exhibit the largest correlation with median house price?
+- What transformations may need to be conducted on the data, or do no transformations need to be done?
 
-```{r long and lat}
 
-## Set echo to false because the code in this section is ugly
+This analysis will seek to explore 2 hypotheses: 
 
-cahouses = read.csv("https://raw.githubusercontent.com/JZhong01/STA321/main/Topic%203/ca-housing-price.csv", 
-   header = TRUE)
+- Hypothesis 1: A reduced model will perform better than the full model. 
 
-lon <- cahouses$longitude
-lat <- cahouses$latitude
+- Hypothesis 2: Distance to the ocean is negatively correlated with median house value.
 
-par(asp = 1)
-plot(lon, lat, main = "CA houses in 1990 Census", xlab = "Longitude", ylab = "Latitude")
+# Methods
+
+This section outlines the key methodologies employed in the analysis, including multiple linear regression, K-means clustering, Box-Cox transformation, and bootstrapping. Each method is designed to address specific research goals and improve model robustness.
+
+## Multiple Linear Regression
+
+Multiple linear regression (MLR) serves as the foundational model for examining how multiple predictors, such as housing characteristics and demographic factors, influence California house prices. In this analysis, MLR allows us to quantify the relationship between the dependent variable, MedianHouseValue, and several independent variables including median income, population, and geographic location. The initial model will include all predictors to provide a baseline understanding before refining the model based on diagnostics. Key assumptions include linearity of relationships, independence of observations, homoscedasticity (constant variance of residuals), and normally distributed residuals.
+
+## K-means Clustering
+
+To capture the geographical variation of latitude and longitude in a more interpretable and meaningful way, K-means clustering is employed. This method groups California’s block groups into distinct geographic regions, which are used as a new categorical variable, GeoCluster. This clustering technique allows for latitude and longitude to be useful predictors, as considering them as separate predictors is unreliable. An elbow plot is employed to determine the optimal number of clusters. The main assumption is that geographic proximity (as measured by distance) meaningfully influences house prices, and that the number of clusters adequately represents regional differences.
+
+## Box-Cox Transformation
+
+Box-Cox transformation is employed to address violations of regression assumptions, particularly non-normality and heteroscedasticity of residuals. By transforming the dependent variable, MedianHouseValue, the Box-Cox method helps stabilize variance and approximate a normal distribution of residuals, improving the overall fit of the regression model. This transformation assumes that the relationship between the predictors and the dependent variable can be linearized and that the response variable is strictly positive, which holds true in this dataset.
+
+## Bootstrap Residuals
+
+Bootstrapping is used to generate robust confidence intervals for the regression coefficients, especially when the assumptions of normality for residuals are violated. By resampling the dataset 1,000 times with replacement, we estimate the variability in the coefficients without relying on parametric assumptions. Bootstrapping is a flexible, non-parametric approach, with the key assumption being that the sample is representative of the population, and resampling can approximate the true sampling distribution of the model estimates.
+
+## Other Methods
+
+In addition to the core methods listed above, other statistical techniques may be employed, depending on the results of the initial analyses:
+
+1) Variance Inflation Factor (VIF): This will be used to detect multicollinearity in the multiple regression models.
+
+2) Residual Diagnostics: Standard diagnostic plots (Q-Q plot, residuals vs. fitted, etc.) will be used to assess the validity of assumptions in the regression model.
+
+3) Cross-Validation: If beneficial, cross-validation may be used to validate the robustness of the final model and prevent overfitting.
+
+
+# Exploratory Data Analysis
+
+The original data set contains 9 independent variables and 1 dependent variable. Before proceeding with model building, it is important to explore the relationships among the variables, identify any patterns, and address potential issues like multicollinearity or irrelevant variables.
+
+
+## Data Characteristics
+
+These data were originally published in the 1997 paper titled *Sparse Spatial Autoregressions* by Pace et al. Each observation represents one census block group from the 1990 US Census conducted in California. 
+
+There is only one response variable - the median house value of the block group. There are 9 predictor variables consisting of 8 numerical variables and one nominal variable. These numerical variables describe geographic location (longitude, latitude), house characteristics (median house age, total rooms, total bedrooms), resident characteristics (population, households), and socioeconomic characteristics (median household income). The categorical variable very roughly describes 5 categories of relation to the ocean (<1 hour away, inland, near ocean, near bay, or island). The summary statistics are as follows: 
+
+<br>
+
+```{r summary of variables}
+
+cahouses %>%
+  summary() %>%
+  t() %>%
+  kable(format = "markdown", caption = "Summary of Data Set's Statistics", )
+
 
 ```
 
-The longitude and latitude values plotted depict precise values that describe the data in terms of geographical location. 
+### Handling Missing Values
 
-Next, 5 histograms were plotted based off what value each observation had for OceanProximity. 
+There are 207 missing values for total_bedrooms. As such, these observations will be removed. While it's normally not advised to remove observations due to concerns of losing information from the data, there are 20640 observations, meaning that removing 207 observations will have a very minor impact. The benefits of removing the observations with missing values outweigh the drawbacks.  
+
+```{r remove NAs}
+  cahouses <- na.omit(cahouses, cols = "total_bedrooms")
+  sum(is.na(cahouses))
+```
+
+
+### Standardizing Income
+
+There is a discrepancy in units for median income of households and median house value. The units for median income are in tens of thousands of US Dollars whereas the units for median house value are in US Dollars. As such, median income is multiplied by a factor of 10000 so that the units are standardized to US Dollars. 
+
+```{r convert median income}
+# conversion of income to USD
+  cahouses$median_income <- cahouses$median_income * 10000
+  summary(cahouses$median_income)
+```
+
+
+
+## Geographic Factors
+
+Longitude and latitude are presented in the data set as 2 separate, standalone variables. However, they should not be used in this way because they do not inherently convey meaningful geographic information when split. Instead, exploratory analysis is conducted to detect whether any patterns occur when both longitude and latitude are used in conjunction. This information can then be used to derive a new categorical variable.
+
+First, a graph of observations' longitude and latitude are plotted to see if patterns emerge.
+
+```{r long and lat}
+
+ggplot(cahouses, aes(x = longitude, y = latitude)) +
+  geom_point(alpha = 0.4, color = 'blue') +
+  labs(title = "Scatter Plot of Longitude and Latitude for California Housing Data", 
+       x = "Longitude", y = "Latitude") +
+  theme_minimal()
+
+```
+
+This scatter plot helps us visualize our geographic data. Based on my observations, the housing data could be sorted into clusters that represent what part of California best 
+
+### Creating Geographic Clusters
+
+Before clustering longitude and latitude, we'll create an elbow plot to help determine the optimal number of clusters.
+
+The plot graphs the total within-cluster sum of squares (WCSS), which measures the compactness of the clusters. As the number of clusters increases, the WCSS decreases because the data points are closer to the centroids of their respective clusters. However, after a certain point (the "elbow"), adding more clusters results in only marginal improvements, indicating that this is the optimal number of clusters. Finding this elbow allows for us to choose a K that appropriately balances model complexity and cluster compactness. 
+
+
+```{r elbow plot}
+
+# Subset the data to include only latitude and longitude
+geo_data <- cahouses[, c('longitude', 'latitude')]
+
+# Set a range of potential K values (number of clusters)
+wcss <- numeric()  # Initialize an empty vector for within-cluster sum of squares
+
+# Calculate WCSS for different numbers of clusters
+for (k in 1:10) {
+  kmeans_result <- kmeans(geo_data, centers = k)
+  wcss[k] <- sum(kmeans_result$tot.withinss)  # Store the WCSS for each K
+}
+
+# Create the elbow plot
+elbow_plot <- data.frame(K = 1:10, WCSS = wcss)
+
+ggplot(elbow_plot, aes(x = K, y = WCSS)) +
+  geom_line(color = "blue", size = 1) +
+  geom_point(color = "red", size = 3) +
+  labs(title = "Elbow Plot for Optimal Number of Clusters", 
+       x = "Number of Clusters (K)", 
+       y = "Within-Cluster Sum of Squares (WCSS)") +
+  scale_x_continuous(breaks = seq(1, 10, by = 1)) +  # Ensure whole numbers on x-axis
+  ylim(0, 50000) +  # Adjust to fit WCSS scale better
+  theme_minimal()
+
+
+```
+
+The first cluster in the elbow plot was not provided because it has a WCSS of over 175000. In addition, while there would be a notable drop off in WCSS from k=1 to k=2 as compared to k=2 to k=3, choosing k=2 clusters may be an oversimplification and may mask smaller, yet meaningful geographic variation. 
+
+As a result, the elbow plot determines that k=4 clusters will be used for the K-means Clustering. 
+
+
+```{r categorize geo regions}
+
+# Clustering longitude and latitude into regions using k-means
+set.seed(123) # Setting a seed for reproducibility
+kmeans_result <- kmeans(cahouses[, c('longitude', 'latitude')], centers = 4)
+
+# Add the cluster assignment as a new categorical variable
+cahouses$GeoCluster <- as.factor(kmeans_result$cluster)
+
+# Summarize the clustering result
+table(cahouses$GeoCluster)
+
+# Plot the geographic clusters
+ggplot(cahouses, aes(x = longitude, y = latitude, color = GeoCluster)) +
+  geom_point(alpha = 0.4) +
+  labs(title = "K-Means Clustering of Longitude and Latitude", 
+       x = "Longitude", y = "Latitude") +
+  theme_minimal()
+```
+
+Now, GeoCluster is used as a categorical variable in place of longitude and latitude. This transformation captures geographic patterns and improves interpretability. Longitude and latitude are dropped from further analysis.
+
+
+### Ocean proximity
+
+OceanProximity describes whether the house is near the ocean. This is a critical factor when considering housing prices due to its strong association with real estate value. 
+ 
+Histograms for median house value across different levels of OceanProximity are plotted to visually investigate for any meaningful distributional differences.
 
 ```{r ocean proximity, echo = FALSE}
 
@@ -166,7 +333,7 @@ inland <- filter(cahouses, ocean_proximity == "INLAND")
 nearocean <- filter(cahouses, ocean_proximity == "NEAR OCEAN")
 island <- filter(cahouses, ocean_proximity == "ISLAND")
 
-par(mfrow = c(2,3))
+par(mfrow = c(2,2))
 hist(nearbay$median_house_value, xlab = "Median House Value", main = "NEAR BAY" )
 
 hist(hourfromocean$median_house_value, xlab = "Median House Value", main = "<1H FROM OCEAN", breaks = 20)
@@ -174,297 +341,288 @@ hist(hourfromocean$median_house_value, xlab = "Median House Value", main = "<1H 
 hist(inland$median_house_value, xlab = "Median House Value", main = "INLAND" )
 
 hist(nearocean$median_house_value, xlab = "Median House Value", main = "NEAR OCEAN" )
+```
+
+```{r island, fig.width=4, fig.height=2}
+par(mfrow = c(1,1))
 
 hist(island$median_house_value, xlab = "Median House Value", main = "ISLAND" )
 
+```
+
+Upon reviewing these histograms, they all display a distinct right skew. To ensure that the different factor levels of OceanProximity are statistically significant from one another, ANOVA is run.  
+
+```{r anova oceanproximity, collapse = FALSE}
+
+anova_model <- aov(median_house_value ~ ocean_proximity, data = cahouses)
+summary(anova_model)
 
 ```
 
-As depicted above, despite there being 5 unique values for OceanProximity, <1H from ocean, Near ocean, and Near bay all have distributions that closely resemble one another. 
-
-As a result, a decision was made to exclude OceanProximity as a predictor in the first candidate model because it may not strongly indicate association of geographical location to house price. Another reason why OceanProximity was excluded was because possible collinearity may be present between ocean proximity and the longitude and latitude variables; since this may be of concern, longitude and latitude were kept in the model because they are more precise and thus better indicators for the model. 
+The Anova resulted in F(4, 20428) = 1595, p < 0.001. This means that at least one factor level differs from the others. As a result, OceanProximity is still relevant to the study at hand. We'll perform post-hoc analyses later when the multiple regression model is built. 
 
 
-## 3.2 Median Income
+### Chi-Squared Test between GeoCluster and OceanProximity
 
-There is a discrepancy in units for median income of households and median house value. The units for median income are in thousands of US Dollars whereas the units for median house value are in US Dollars. As such, unit conversion for median income was performed to convert units to US Dollars to be more consistent. 
+To ensure that the GeoCluster and OceanProximity variables are not confounding each other, a Chi-Squared Test of Independence is run. This test will check if there is an association between the two categorical variables. If the p-value is significant, we will need to assess the impact of using both variables in the model.
 
-```{r convert median income}
+```{r chisq ToI, collapse = FALSE}
 
-cahouses$median_income <- cahouses$median_income * 10000
+geo_ocean_table <- table(cahouses$GeoCluster, cahouses$ocean_proximity)
+chisq.test(geo_ocean_table)
+
+```
+
+Since Χ^2(12) = 9684.5, p < 0.01 from the chi-squared test of independence, there appears to be an association between geographic cluster and ocean proximity. This concern will be addressed when candidate models are built. 
+
+
+## Socioeconomic Factors 
+
+Socioeconomic factors such as population distribution, economic status, and household distributions can significantly influence median house values and will be considered as part of this study. 
+
+### Median Income
+
+A histogram of median income distribution of the 20433 observations is created. 
+
+```{r hist of med_income}
+# income distribution
+hist(cahouses$median_income, xlab = "Median Income", main = "Median Income Distribution")
+
+```
+
+In the distribution for median income, each bar represents an increment of 10,000. The first bar shows that roughly 100 block groups have a median income between 0 and 9,999. The distribution is right-skewed, with fewer than 500 block groups showing a median income of 100,000 or more.
+
+However, we decided not to discretize median income further, as binning can reduce statistical power and cause information loss. Furthermore, the maximum median income observed was 150,001. The fact that exactly 50 block groups have this value suggests that incomes over 150,000 have already been binned in the original dataset.
+
+```{r not binning median income, echo = TRUE}
+#proof income was pre-discretized
+
+  sum(cahouses$median_income == 150001)
+
+  tail(sort(cahouses$median_income), 50)
 
 ```
 
 
-# 4 Linear Model
+### Inhabitant Characteristics 
 
-The initial full model will consist of 8 predictor variables (all the original ones minus OceanProximity and with the updated MedianIncome). The linear model is represented as the following equation: 
+The distributions for population and households are plotted below. 
 
-\(MedianHouseValue = \beta_0 + \beta_1 * Longitude + \beta_2 * Latitude + \beta_3 * HousingMedianAge + \beta_4 * TotalRooms + \beta_5 * TotalBedrooms + \beta_6 * Population + \beta_7 * Households + \beta_8 * MedianIncome + \epsilon\)
+```{r plot pop/household, fig.width=8, fig.height=4}
 
+#Population distribution
+par(mfrow = c(1,2))
+hist(cahouses$population, xlab = "Population Count", xlim = c(0, 8000), main = "Population Distribution" ) 
+text(x = 5000, y = 15000, labels = "60 Observations >= 8000 ", col = "red", cex = 0.8, pos = 1)
+text(x = 5000, y = 14000, labels = "are cut off", col = "red", cex = 0.8, pos = 1)
 
-where each beta represents a coefficient in the linear model and epsilon represents the residuals or error value. 
+sum(cahouses$population >= 8000)
 
-## 4.1 Initial Model
+#Household distribution
+hist(cahouses$households, xlab = "Household Count", xlim = c(0, 3000), main = "Household Distribution" )
+text(x = 1800, y = 11000, labels = "47 Observations >= 3000 ", col = "red", cex = 0.8, pos = 1)
+text(x = 1800, y = 10000, labels = "are cut off", col = "red", cex = 0.8, pos = 1)
 
-By running lm(), the linear model of the initial model can be run and output coefficients for the model. 
-
-```{r initial model}
-
-initial_model = lm(median_house_value ~. - ocean_proximity, data = cahouses)
-
-
-##I'm unsure how to get P-value to display something other than just 0, setting digits = 2 didn't work
-kable(summary(initial_model)$coef, caption = "Statistics of Regression Coefficients", digits = 2, scientific = TRUE)
-
-
-
-
-alteredcoef_model <- format(initial_model$coefficients, scientific = FALSE, digits = 2) # Round to 2 decimal points
+sum(cahouses$households >= 3000)
 
 ```
 
+The histograms for population and household counts display right-skewed distributions, with a high frequency of block groups with smaller populations and household counts. Population-dense areas, typically urban or suburban, contribute to this skew by comprising smaller geographic areas. This leads to a concentration of block groups with smaller populations and household sizes. Consequently, it is likely that a transformation will be required to correct these skews before proceeding with the analysis.
 
-Adding the coefficients to the model gives us the following: 
+## House Characteristics
 
-MedianHouseValue = `r alteredcoef_model[1]` + `r alteredcoef_model[2]` * Longitude + `r alteredcoef_model[3]` * Latitude + `r alteredcoef_model[4]` * HousingMedianAge + 
-`r alteredcoef_model[5]` * TotalRooms + 
-`r alteredcoef_model[6]` * TotalBedrooms +
-`r alteredcoef_model[7]` * Population + 
-`r alteredcoef_model[8]` * Households + 
-`r alteredcoef_model[9]` * MedianIncome + \(\epsilon\).
+### Median House Age
+
+The distribution of housing median age is shown below.
+
+```{r plot house med age}
+
+# house age distribution
+hist(cahouses$housing_median_age, xlab = "Age of house", main = "Median House Age Distribution" )
 
 
-## 4.2 Residual Analysis
+sum(cahouses$housing_median_age == 52)
 
-4 diagnostic plots are run to see if assumptions about residuals are met. The Versus Fits plot checks for linearity of residuals, Q-Q plot checks for normal distribution of residuals, Scale-Location checks for constant variance of residuals, and the Residuals vs Leverage plot checks for influential points.  
 
-```{r residual analysis}
+```
 
+The distribution for housing median age is approximately normal, except for the last bar, which represents a large spike at 52 years old. This suggests that the data for housing age may have been discretized or capped at 52 years, as 1,265 observations are recorded at this exact age. Nonetheless, since normality is largely satisfied, no transformation is required for housing age.
+
+### Rooms and Bedrooms
+
+Next, the distributions of total rooms and total bedrooms per block group are displayed.
+
+```{r plot total rooms/bedrooms, fig.width=8, fig.height=4}
+
+# Total room distribution
+par(mfrow = c(1,2))
+hist(cahouses$total_rooms, xlab = "Room Count", xlim = c(0,15000), main = "Total Rooms Distribution" )
+text(x = 10000, y = 7500, labels = "97 Observations >= 15000 ", col = "red", cex = 0.8, pos = 1)
+text(x = 10000, y = 6800, labels = "are cut off", col = "red", cex = 0.8, pos = 1)
+
+sum(cahouses$total_rooms >= 15000)
+
+
+# Total bedroom distribution
+hist(cahouses$total_bedrooms, xlab = "Bedroom Count", xlim = c(0, 3000), main = "Total Bedrooms Distribution" )
+text(x = 2000, y = 10000, labels = "67 Observations >= 3000 ", col = "red", cex = 0.8, pos = 1)
+text(x = 2000, y = 9100, labels = "are cut off", col = "red", cex = 0.8, pos = 1)
+
+sum(cahouses$total_bedrooms >= 3000)
+
+```
+
+Both the total rooms and total bedrooms distributions exhibit heavy right-skewed patterns. This is expected, as apartment complexes or smaller homes in densely populated areas tend to contribute lower counts of rooms and bedrooms per block group. Given the skewness, a transformation will likely be required to normalize these variables and improve the model's performance.
+
+
+## Multicollinearity and Variable Selection
+
+Multicollinearity occurs when two or more predictor variables in a model are highly correlated, which can obscure the true relationship between each predictor and the response variable. A key step before building the regression model is to check for multicollinearity among the numerical variables.
+
+### Pairwise Scatterplot
+
+A pairwise scatterplot is used to visually inspect the relationships between numerical variables and check for highly correlated pairs. The correlation coefficients between the variables are shown on the plot, and higher correlations indicate potential issues with multicollinearity.
+
+```{r multicollinearity}
+
+pairs.panels(cahouses[, -c(1, 2, 9, 10, 11)], pch=21, main="Pair-wise Scatter Plot of Numerical Variables")
+
+
+```
+
+Visually, the pairwise scatterplot reveals a few concerning cases of collinearity. For instance, the correlation between the number of rooms and the number of bedrooms is extremely high (0.98), suggesting these two variables are capturing very similar information. Other large correlations exist between population and households (0.91), and rooms with households (0.92). These strong correlations indicate multicollinearity, which may distort our regression results. In the next section, we formally test for multicollinearity using the Variance Inflation Factor (VIF).
+
+### Variance Inflation Factor (VIF) Check
+
+To formally detect multicollinearity, Variance Inflation Factors (VIF) are calculated for the predictors in the initial model. A VIF value greater than 10 typically indicates a high level of multicollinearity, which could affect the stability of the regression coefficients. However, it is important to note that for categorical variables transformed into dummy variables, high VIFs may not always be a cause for concern due to how reference categories are selected.
+
+```{r vif check}
+
+full_model <- lm(median_house_value~. - longitude - latitude, data = cahouses)
+vif(full_model)
+
+
+```
+
+In examining the VIF values, Total Rooms (VIF = 12.97), Total Bedrooms (VIF = 36.05), and Households (VIF = 34.57) exhibit extremely high multicollinearity, which is consistent with our earlier visual inspection of the pairwise scatterplots. These high VIF values suggest that these variables provide overlapping information, and it may be beneficial to consider reducing the number of highly correlated variables to improve the model.
+
+However, it is worth noting that GeoCluster and OceanProximity, which are categorical variables, have moderate VIF values that are not as concerning. High VIFs for dummy variables often arise due to small sample sizes in reference categories. In this case, while the VIF for OceanProximity is 2.19 and GeoCluster is 1.87, these values are not large enough to warrant concern, especially given that the categorical variables are dummy coded.
+
+We will continue to address these multicollinearity issues in our variable selection and modeling steps. Specifically, it may be necessary to drop or transform certain numerical variables (such as Total Bedrooms and Households) to improve model stability, while recognizing that categorical variables may inherently have higher VIF values without seriously affecting the overall model fit.
+
+
+# Regression Modeling
+
+After performing the exploratory data analysis and preparing the data, the next step is to develop a regression model. The aim is to build a model that not only meets statistical requirements, such as satisfying assumptions about linearity, normality, and homoscedasticity, but also provides valuable practical insights for decision-making.
+
+Categorical variables with more than 2 factor levels results in the creation of dummy variables. This means the coefficients for the dummy variables compare each category to their respective baseline. Our two categorical variables, Ocean_proximity and GeoCluster, have baselines of <1 hour from ocean and GeoCluster1 respectively. 
+
+For instance, if ocean_proximityINLAND has a negative coefficient, it signifies that homes that are inland have lower median value compared to those within <1 hour from the ocean; this suggests that coastal proximity dramatically increases property value. Similarly, GeoCluster2 having a positive coefficient indicates that that region has higher median house values compared to GeoCluster1, implying those regions are more desirable or have higher property demand.
+
+## Full Model 
+
+We begin by fitting a full model with all predictors (excluding longitude and latitude, which were previously transformed into geographic clusters). This model will serve as the baseline for comparison.
+
+```{r full model}
+
+full_model <- lm(median_house_value ~ . - longitude - latitude, data = cahouses)
+
+kable(round(summary(full_model)$coef, 3), caption = "Coefficient Matrix for Full Linear Model") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = F) %>%
+  column_spec(1:5, width = "4cm")
+
+
+
+```
+
+### Full Model Coefficient Interpretation
+
+The coefficients below summarize the relationship between predictor variables and median house value:
+
+- **Housing Median Age**: Each additional year of housing median age increases house value by $1,135, likely due to the appeal of established areas.
+
+- **Total Rooms**: For each additional room, house value decreases by $6.72. This appears to be paradoxical, but it is likely the result of the collinearity between Total Rooms and Total Bedrooms. 
+
+- **Total Bedrooms**: Each additional bedroom increases house value by $79.90, reflecting that bedrooms are more valuable than overall room count.
+
+- **Population**: For each additional person in the population, house value decreases by $37.60. More populated areas tend to have lower house values, possibly due to crowding or lower space per household.
+
+- **Households**: Each additional household increases house value by $73.83, suggesting that higher demand for housing raises prices.
+
+- **Median Income**: For every 1 dollar increase in median income, house value increases by 3.95 dollars. Higher-income areas see higher home values.
+
+- **Ocean Proximity**: The dummy variable represents the proximity of houses to the ocean.
+  - **INLAND**: Inland properties are associated with a $66,400 decrease in value compared to properties within <1 hour from the ocean.
+  - **ISLAND**: Island properties are associated with a $73,164 increase in value compared to properties within <1 hour from the ocean.
+  - **NEAR BAY**: Properties near the bay are associated with a $4,257 decrease in value compared to those <1 hour from the ocean.
+  - **NEAR OCEAN**: Properties near the ocean see a $13,969 increase in value compared to those <1 hour from the ocean.
+
+- **GeoCluster**: The GeoCluster categorical variable captures geographic patterns and their relationship to house value.
+  - **GeoCluster2**: Properties in this cluster are associated with a $22,843 increase in value compared to GeoCluster1.
+  - **GeoCluster3**: Properties in this cluster see a $13,191 increase in value compared to GeoCluster1.
+  - **GeoCluster4**: Properties in this cluster have a $13,359 decrease in value compared to GeoCluster1.
+
+
+### Full Model Residual Analysis
+
+To assess the model, we check for any violations of regression assumptions by examining residual plots:
+
+```{r full model RA}
 par(mfrow = c(2,2))
-plot(initial_model)
+plot(full_model)
 
 ```
 
-Based off the residual plots, there are some minor violations:
+- **Residuals vs Fitted**: There’s a clear non-linearity, especially for higher fitted values. The relationship between predictors and house values may not be fully captured by a linear model.
 
-- Observation #15361 is an influential point and can be seen affecting the linearity of the model. 
-- Variance of the residuals is not constant
-- The QQ plot indicates a slightly non-normal distribution. Mainly observation 15361 is affecting the plot's distribution. 
+- **Normal Q-Q**: Deviations from normality in the tails suggest that some residuals, particularly from influential points like observations 15361 and 18502, are outliers. This affects the model's validity for hypothesis testing.
 
+- **Scale-Location**: The increasing spread of residuals with higher fitted values suggests heteroscedasticity, indicating non-constant variance. A transformation of the response variable could help address this.
 
-## 4.3 Variance Inflation Factors
+- **Residuals vs Leverage**: Influential points such as 15361 and 18502 have high leverage and may be disproportionately impacting the model. These points require further investigation, and removing them could provide more stable results.
 
-VIF indices were constructed to detect issues with multicollinearity
-
-```{r vifs}
-
-vif(initial_model)
-
-```
-
-The model displays significant issues with multicollinearity. No multicollinearity is present with VIF indices close to 1, and there is concern if the indices are 10 or larger. Considering that 3 indices are above 10 and 2 are close to 10, this model may need adjustments to balance out this issue. 
+To address these violations, transformations such as a Box-Cox or log transformation of the response variable should be considered. Additionally, handling influential points and reducing multicollinearity can improve model stability and predictive performance.
 
 
+## Reduced Model
 
-# 5 Bootstrap Confidence Intervals
+The primary goal of developing a reduced model is to alleviate the multicollinearity present in the full model, as identified through the high VIF values for certain predictors. Reducing multicollinearity ensures more stable and interpretable regression coefficients, leading to a model that balances simplicity and predictive performance.
 
-Since parametric assumptions cannot be made for the underlying distribution, bootstrap confidence intervals are used to make inferences. 
+Additionally, we aim to create a parsimonious model, which is a model that explains the data with the fewest possible variables without sacrificing explanatory power. This is important because a simpler model is easier to interpret and often avoids overfitting, while still capturing the significant relationships between predictors and house values.
 
-```{r Bootstrap Regression Distribution, echo = FALSE}
-  
-beta0 <- numeric(1000)
-beta1 <- numeric(1000)
-beta2 <- numeric(1000)
-beta3 <- numeric(1000)
-beta4 <- numeric(1000)
-beta5 <- numeric(1000)
-beta6 <- numeric(1000)
-beta7 <- numeric(1000)
-beta8 <- numeric(1000)
+To address multicollinearity, we will iteratively remove the following variables:
 
-#Create vectors same count as income observations
-boot_vector <- 1:length(cahouses$median_income) 
+- **Total Rooms**: Has high VIF and could be collinear with Total Bedrooms. Total Bedrooms typically is a better indicator of house value.
+- **Population**: Another variable with potential collinearity with Households.
+- **Households**: Has collinearity with population and total rooms.
+- **A combination of the three**: The likely reduced model with low multicollinearity is one where multiple variables are taken out.
 
-#1000 bootstrap replications
-for(i in 1:1000){
-  #Sample N for a bootstrap sample
-  cur_boot_sample <- sample(boot_vector, nrow(cahouses), replace = TRUE)
-  cur_boot_data <- cahouses[cur_boot_sample,]
-  
+We will then compare the goodness-of-fit measures to determine which reduced model performs best.
 
-  #Perform regression on that sample
-  boot_reg <- lm(median_house_value~. - ocean_proximity, data = cur_boot_data)
-  
-  
-  
-  #Store coefficients
-  beta0[i] <- boot_reg$coefficients[1] 
-  beta1[i] <- boot_reg$coefficients[2]  
-  beta2[i] <- boot_reg$coefficients[3]
-  beta3[i] <- boot_reg$coefficients[4] 
-  beta4[i] <- boot_reg$coefficients[5]  
-  beta5[i] <- boot_reg$coefficients[6]
-  beta6[i] <- boot_reg$coefficients[7] 
-  beta7[i] <- boot_reg$coefficients[8]  
-  beta8[i] <- boot_reg$coefficients[9]
-  
-  
-}
 
-#Plot Beta distributions (Commented out to keep runtime low)
+### Reduced Model Criterion
 
-#hist(beta0, main = "Bootstrap Sampled Intercepts", xlab = "Bootstrap Estimated Beta0s")
-#hist(beta1, main = "Bootstrap Sampled Slopes", xlab = "Bootstrap Estimated Beta1s")
-#hist(beta2, main = "Bootstrap Sampled Intercepts", xlab = "Bootstrap Estimated Beta2s")
-#hist(beta3, main = "Bootstrap Sampled Slopes", xlab = "Bootstrap Estimated Beta3s")
-#hist(beta4, main = "Bootstrap Sampled Intercepts", xlab = "Bootstrap Estimated Beta4s")
-#hist(beta5, main = "Bootstrap Sampled Slopes", xlab = "Bootstrap Estimated Beta5s")
-#hist(beta6, main = "Bootstrap Sampled Intercepts", xlab = "Bootstrap Estimated Beta6s")
-#hist(beta7, main = "Bootstrap Sampled Slopes", xlab = "Bootstrap Estimated Beta7s")
-#hist(beta8, main = "Bootstrap Sampled Intercepts", xlab = "Bootstrap Estimated Beta8s")
+We create three reduced models by removing each of the identified variables.
 
+```{r reduced models created}
+
+# Reduced Model 1: Remove Total Rooms
+r_model1 <- lm(median_house_value ~ . - total_rooms - longitude - latitude, data = cahouses)
+
+# Reduced Model 2: Remove Population
+r_model2 <- lm(median_house_value ~ . - population - longitude - latitude, data = cahouses)
+
+# Reduced Model 3: Remove Both Total Rooms and Population
+r_model3 <- lm(median_house_value ~ . - total_rooms - population - longitude - latitude, data = cahouses)
+
+# Reduced Model 4: All 3 variables
+r_model4 <- lm(median_house_value ~ . - total_rooms - population - households - longitude - latitude, data = cahouses)
 
 ```
 
+Next, we compare the goodness-of-fit metrics across the models to identify which one offers the best balance of model fit and simplicity.
 
-After conducting 1000 replications of bootstrap samples, 95% confidence intervals were conducted on every beta coefficient in the linear model. 
-
-```{r Bootstrap Confidence Intervals, echo = FALSE}
-
-  beta0_ci <- quantile(beta0, c(0.025, 0.975), digits = 2)
-  beta1_ci <- quantile(beta1, c(0.025, 0.975), digits = 2)
-  beta2_ci <- quantile(beta2, c(0.025, 0.975), digits = 2)
-  beta3_ci <- quantile(beta3, c(0.025, 0.975), digits = 2)
-  beta4_ci <- quantile(beta4, c(0.025, 0.975), digits = 2)
-  beta5_ci <- quantile(beta5, c(0.025, 0.975), digits = 2)
-  beta6_ci <- quantile(beta6, c(0.025, 0.975), digits = 2)
-  beta7_ci <- quantile(beta7, c(0.025, 0.975), digits = 2)
-  beta8_ci <- quantile(beta8, c(0.025, 0.975), digits = 2)
-  
-  
-```
-
-The 95% confidence intervals are as follows: 
-
-- $\beta_0$: 95% CI[`r beta0_ci[1]`, `r beta0_ci[2]`]
-- $\beta_1$: 95% CI[`r beta1_ci[1]`, `r beta1_ci[2]`]
-- $\beta_2$: 95% CI[`r beta2_ci[1]`, `r beta2_ci[2]`]
-- $\beta_3$: 95% CI[`r beta3_ci[1]`, `r beta3_ci[2]`]
-- $\beta_4$: 95% CI[`r beta4_ci[1]`, `r beta4_ci[2]`]
-- $\beta_5$: 95% CI[`r beta5_ci[1]`, `r beta5_ci[2]`]
-- $\beta_6$: 95% CI[`r beta6_ci[1]`, `r beta6_ci[2]`]
-- $\beta_7$: 95% CI[`r beta7_ci[1]`, `r beta7_ci[2]`]
-- $\beta_8$: 95% CI[`r beta8_ci[1]`, `r beta8_ci[2]`]
-
-
-Since none of the 95% confidence intervals for each of these coefficients contains 0, that means that at the $\alpha$ = 0.05 level, all coefficients in the linear model are statistically significant. 
-
-
-
-# 6 Box-Cox Transformation
-
-A Box-Cox Transformation is performed to correct for heteroscedasticity and non-normal distribution of the residuals. 
-
-
-```{r boxcox transformation}
-
-boxcox(median_house_value~.-ocean_proximity, data = cahouses, lambda = seq(0.15, 0.25, length = 10))
-
-```
-
-The lambda value from the box-cox suggests that a lambda of 0.22 may be effective in transforming the model. 
-
-```{r log transformation}
-
-
-bctransformed_model <- lm((median_house_value)^0.22 ~. -ocean_proximity, data = cahouses)
-
-kable(summary(bctransformed_model)$coef, caption = "log-transformed model", digits = 2)
-
-
-par(mfrow = c(2,2))
-plot(bctransformed_model)
-
-
-
-```
-
-It appears that the residual plots after performing the box-cox transformation are significantly better.
-
-## 6.1 Removing Observation #15361
-
-However, the influential point at observation 15361 significantly affects the data adversely. Observation 15361 has a Latitude of 33.35 and a Longitude of -117.42, which is where the Marine Corps' Base Camp Pendleton. This explains why the predictor variables poorly predict for this location. As such, a second model will be conducted by removing this point.  
-
-
-```{r removed influential point}
-
-#Remove observation 15361
-noinfpt_data <- cahouses[-15361,]
-
-
-noinfpt_model <- lm(median_house_value~.-ocean_proximity, data = noinfpt_data)
-
-#par(mfrow = c(2,2))
-#plot(noinfpt_model)
-
-noinfpt_bctransformed_model <- lm((median_house_value)^0.22 ~. -ocean_proximity, data = noinfpt_data)
-
-kable(summary(noinfpt_bctransformed_model)$coef, caption = "log-transformed model", digits = 2)
-
-par(mfrow = c(2,2))
-plot(noinfpt_bctransformed_model)
-
-```
-
-
-## 6.2 Box-Cox after Removing #15361 
-
-After removing the influential point and then performing a box-cox transformation, the residual plots look substantially better. 
-
-
-```{r box-cox w/o influential point}
-
-
-noinfpt_bc_model <- lm((median_house_value)^0.22 ~. -ocean_proximity, data = noinfpt_data)
-
-kable(summary(noinfpt_bc_model)$coef, caption = "log-transformed model w/o outlier", digits = 2)
-
-
-par(mfrow = c(2,2))
-plot(noinfpt_bc_model)
-
-
-
-```
-
-
-# 7 Goodness of Fit Measures
-
-Goodness-of-fit measures help to assess how well the model fits the observed data. These measures offer a quantitative value for how closely predicted values model the actual observed values. 
-
-The Goodness of Fit measures used here to assess the candidate models are the following: 
-
-- SSE: The sum of squared errors. Computed by adding up (predicted - observed)^2 values. 
-- $R^2$: Coefficient of Determination or R-squared. Measure of the proportion of variation in the dependent variable as explained by the independent variables. 
-- $R^2_{adj}$: Adjusted R-squared, which is a modified R-squared statistic that accounts for number of predictors. It helps reduce the upward bias experienced by normal R-squared. 
-- $C_p$: Mallow's $C_p$, which is designed to factor in goodness of fit and model complexity by factoring in estimating variance in residuals (alongside SSE).
-- AIC: Akaike Information Criterion, a calculation that balances model fit with complexity.
-- SBC: Schwarz Bayesian information Criterion, which is similar to AIC in analyzing model fit and complexity, but calculating complexity by factoring in sample size.  
-- PRESS: Predicted Residual Sum of Squares, which measures predictive performance based on the residual and leverage values of each observation in the model. 
-
-
-It's worth noting that SSE, AIC, SBC, and PRESS depend on the magnitude of the response. $R^2$, $R^2_{adj}$, and $C_p$ scale accordingly and are independent of response. This means that when the response is transformed in log transformations or box-cox, $R^2$, $R^2_{adj}$, and $C_p$ are better at measuring goodness of fit. 
-
-
-## 7.1 Candidate Models
-
-The models that will be analyzed will be the full model with slight modifications (no ocean proximity, median_income * 10000), box-cox transformation of the model, and box-cox transformation with the outlier removed. 
-
-## 7.2 Goodness-of-fit on Candidate models
-
-```{r goodness of fit}
-
+```{r reduced GoF}
 
 select=function(m){ # m is an object: model
  e = m$resid                           # residuals
@@ -478,86 +636,208 @@ select=function(m){ # m is an object: model
  SBC=n0*log(SSE)-n0*log(n0)+(log(n0))*(n0-m$df)  # Schwarz Bayesian Information criterion
  X=model.matrix(m)                     # design matrix of the model
  H=X%*%solve(t(X)%*%X)%*%t(X)          # hat matrix
- d=e/(1-diag(H))                       
+ d=e/(1-diag(H))
  PRESS=t(d)%*%d   # predicted residual error sum of squares (PRESS)- a cross-validation measure
  tbl = as.data.frame(cbind(SSE=SSE, R.sq=R.sq, R.adj = R.adj, Cp = Cp, AIC = AIC, SBC = SBC, PRD = PRESS))
  names(tbl)=c("SSE", "R.sq", "R.adj", "Cp", "AIC", "SBC", "PRESS")
+ tbl = round(tbl, 2)
  tbl
  }
 
 
-## Edited this because the original kable was difficult to read. 
+## Edited this because the original kable was difficult to read.
 
-select(initial_model)
-select(bctransformed_model)
-select(noinfpt_bc_model)
+output <- rbind(select(r_model1), select(r_model2), select(r_model3), select(r_model4))
+
+row.names(output) <- c("Total Rooms Removed", "Population Removed", "Total Rooms and Population Removed", "All 3 Removed")
+
+# kable(output, caption = "Goodness-of-fit Measures of Candidate Models")
+
+kable(round(output, 3), caption = "Goodness-of-fit Measures of Candidate Models") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = F) %>%
+  column_spec(1:5, width = "4cm")
+
+vif(r_model1)
+
+vif(r_model2)
+
+vif(r_model3)
+
+vif(r_model4)
+
+
+###
+```
+
+The VIF values are still really large, I'm not quite sure I can manually reduce in a manner that gives a quality candidate model. For now, we'll move to automatic variable selection to identify our reduced models.
+
+
+## Stepwise AIC
+
+We begin by applying Stepwise AIC selection to reduce the model's complexity and improve interpretability. StepAIC minimizes the Akaike Information Criterion (AIC), which balances model fit and complexity. This method iteratively adds or removes variables, choosing the model with the lowest AIC.
+
+
+```{r stepaic}
+
+# Fit the full model
+full_model <- lm(median_house_value ~ . - longitude - latitude, data = cahouses)
+
+# Apply stepwise selection based on AIC
+step_model <- stepAIC(full_model, direction = "both", trace = FALSE)
+
+# Check the summary of the stepwise-selected model
+kable(round(summary(step_model)$coef, 3), caption = "Coefficient Matrix for StepAIC-Selected Model") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = F) %>%
+  column_spec(1:5, width = "4cm")
+
+```
+
+The stepwise regression model removed none of the variables, making it identical to the full model. This is because the full model must have the lowest AIC already. However, because this model still suffers from multicollinearity, we will proceed to a different method for automatic variable selection.
+
+
+## LASSO Regression
+
+Lasso (Least Absolute Shrinkage and Selection Operator) is a regularization technique that penalizes the absolute size of regression coefficients, shrinking less important coefficients to zero and effectively performing variable selection. This method is particularly useful when dealing with multicollinearity, and it helps create simpler, more interpretable models by automatically selecting the most relevant predictors.
+
+
+We apply Lasso Regression to identify the most important variables and shrink the less relevant ones. The final model will only include predictors that contribute meaningfully to predicting median house value.
+
+
+```{r lasso reg}
+
+library(glmnet)
+
+# Prepare the data for glmnet (requires matrix for predictors)
+X <- model.matrix(median_house_value ~ . - longitude - latitude, cahouses)[,-1]
+Y <- cahouses$median_house_value
+
+# Fit Lasso model with cross-validation to find the best lambda
+lasso_model <- cv.glmnet(X, Y, alpha = 1)
+
+# Plot the cross-validated mean squared error for different values of lambda
+plot(lasso_model)
+
+# Get the best lambda that minimizes the cross-validated error
+best_lambda <- lasso_model$lambda.min
+
+# Fit the final Lasso model using the best lambda
+final_lasso <- glmnet(X, Y, alpha = 1, lambda = best_lambda)
+
+# Extract the coefficients of the selected variables
+lasso_coefs <- coef(final_lasso)
+lasso_df <- as.data.frame(as.matrix(lasso_coefs))  # Convert sparse matrix to dataframe
+colnames(lasso_df) <- c("Coefficient")
+
+# Display coefficients in a table
+kable(round(lasso_df, 3), caption = "Coefficient Matrix for Lasso-Selected Model") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = F) %>%
+  column_spec(1:2, width = "4cm")
 
 
 ```
 
-These goodness of fit measures demonstrate that the the box-cox transformation with the outlier removed appears to be the best model. This is because it had the largest adjusted R-squared value, measuring 0.6536. This means that 65.36% of the variability in median house value could be explained by the box-cox transformed model.
 
-# 8 Final Model
+### No variables removed by LASSO
 
-As such, the final model is the linear model without observation 15361 present and response variable 'median house value' taken to the 0.22 power (what the lambda value was). The inferential statistics is summarized in the following table. 
+The Lasso regression did not remove any variables, which indicates that all the predictors in the model have some level of significance in explaining the variance in house prices. This outcome suggests that despite the multicollinearity observed earlier, each predictor contributes meaningfully to the model. However, while Lasso didn’t eliminate variables, it did shrink their coefficients, which has important implications for the model's interpretation and performance.
 
-```{r final model}
+By shrinking the magnitude of the coefficients, Lasso helps mitigate the overfitting that can arise when certain predictors have an overly strong influence on the model. In the full model, some predictors had relatively large coefficients, which could result in an unstable model, particularly when new data are introduced. The reduced coefficient values in the Lasso model indicate that while these predictors still contribute to house price predictions, their individual impact is more tempered, which helps improve the generalizability of the model to unseen data.
 
-#Used base R to print because p-values kept displaying 0 instead of scietnific notation
+The fact that Lasso did not remove any predictors also implies that multicollinearity is still present in the model. However, by shrinking the coefficients, Lasso reduces the sensitivity of the model to multicollinearity. While this doesn't completely resolve the issue of multicollinearity, it makes the model less prone to the erratic changes in coefficients that can occur when collinear predictors are included.
 
-#kable(summary(bctransformed_model)$coef, caption = "Inferential Statistics of Final Model", digits = 6, scientific = TRUE)
+In practice, this means that while the Lasso model is likely to generalize better to new data than the full model, it still contains all of the original predictors, which could complicate interpretation. Each predictor still plays a role in explaining house prices, but their contributions are reduced, resulting in a more stable, but slightly less interpretable, model. The implications of this are twofold: Lasso provides a safeguard against overfitting while still allowing for the full complexity of the data to be captured. However, if the goal is to simplify the model further, other strategies—such as variable interactions or further domain-driven selection—may be needed.
+
+Overall, the Lasso model strikes a balance between retaining predictor significance and ensuring a more robust, generalizable model. By reducing the influence of individual variables without eliminating them, Lasso maintains the explanatory power of the model while making it more resistant to overfitting.
 
 
-summary_coefs <- summary(noinfpt_bc_model)$coef
+### LASSO Coefficient Interpretation
 
-print(summary_coefs, main = "Inferential Statsitics of Final Model")
+The coefficients above summarize the relationship between predictor variables and median house value after Lasso regularization:
+
+- **Housing Median Age**: Each additional year of housing median age increases house value by $1,128, slightly reduced from the full model. This implies that the age of the house remains a strong positive factor in house valuation.
+
+- **Total Rooms**: For each additional room, house value decreases by \$5.85, compared to $6.72 in the full model. This reduction suggests that Lasso minimized the influence of total rooms but did not remove it entirely.
+
+- **Total Bedrooms**: Each additional bedroom increases house value by \$75.15, slightly smaller than in the full model (\$79.90), indicating that bedrooms are still valued more than overall room count but with reduced impact.
+
+- **Population**: For each additional person in the population, house value decreases by \$37.41, nearly identical to the full model. More populated areas still tend to have lower house values.
+
+- **Households**: Each additional household increases house value by \$73.64, again similar to the full model. This continues to suggest that higher demand for housing raises property prices.
+
+- **Median Income**: For every 1 dollar increase in median income, house value increases by $3.92, which is consistent with the full model. Higher-income areas still correspond to higher house prices.
+
+- **Ocean Proximity**:
+
+  - **INLAND**: Inland properties are associated with a $66,688 decrease in value compared to properties within <1 hour from the ocean.
+  - **ISLAND**: Island properties are associated with a $169,482 increase in value compared to properties within <1 hour from the ocean.
+  - **NEAR BAY**: Properties near the bay are associated with a $3,716 decrease in value compared to those <1 hour from the ocean.
+  - **NEAR OCEAN**: Properties near the ocean are associated with a $13,553 increase in value compared to those <1 hour from the ocean.
+  
+- **GeoCluster**:
+  - **GeoCluster2**: Properties in this cluster are associated with a $22,153 increase in value compared to GeoCluster1.
+  - **GeoCluster3**: Properties in this cluster see a $12,754 increase in value compared to GeoCluster1.
+  - **GeoCluster4**: Properties in this cluster have a $13,715 decrease in value compared to GeoCluster1.
+
+
+### LASSO Residual Analysis
+
+We now assess the Lasso model by checking for any violations of regression assumptions through residual plots:
+
+```{r lasso RA}
+
+# Predict values using the Lasso model
+yhat_lasso <- predict(final_lasso, newx = X)
+
+# Calculate residuals
+residuals_lasso <- Y - yhat_lasso
+
+# Plot residuals against predicted values
+par(mfrow = c(2, 2))
+
+# Residuals vs Fitted (Predicted) values
+plot(yhat_lasso, residuals_lasso, 
+     main = "Residuals vs Fitted", 
+     xlab = "Fitted values (Predicted)", 
+     ylab = "Residuals")
+abline(h = 0, col = "red")
+
+# Q-Q plot for normality
+qqnorm(residuals_lasso, main = "Normal Q-Q Plot")
+qqline(residuals_lasso, col = "red")
+
+# Scale-location plot (for homoscedasticity)
+sqrt_residuals <- sqrt(abs(residuals_lasso))
+plot(yhat_lasso, sqrt_residuals, 
+     main = "Scale-Location", 
+     xlab = "Fitted values (Predicted)", 
+     ylab = "Sqrt(|Residuals|)")
+abline(h = 0, col = "red")
+
+# Residuals vs Leverage plot
+# For this plot, we need the hat matrix (leverage) values
+hat_values <- hatvalues(lm(Y ~ X))  # Approximate hat values
+plot(hat_values, residuals_lasso, 
+     main = "Residuals vs Leverage", 
+     xlab = "Leverage", 
+     ylab = "Residuals")
+abline(h = 0, col = "red")
+
+par(mfrow = c(1, 1))  # Reset to default plotting window
+
+
+
 ```
 
-## 8.1 Summary of the model
+- **Residuals vs Fitted**: A slight curvature suggests some non-linearity, especially for higher fitted values. However, given the large sample size, the model still captures the overall trend effectively, and minor deviations are not a major concern.
 
-The final model can be written as the following: 
+- **Normal Q-Q Plot**: The tails deviate from normality, reflecting a few outliers. With a large dataset, small deviations from normality are expected and don’t severely impact the model’s overall validity.
 
-$Median House Value^{0.22}$ = -57.495 -0.829 * Longitude - 0.839 * Latitude + 0.0119 * Housing Median Age - 9.46E$10^{-5}$ * Total Rooms + 1.49E$10^{-3}$ * Total Bedrooms - 6.29E$10^{-4}$ * Population + 9.73E$10^{-4}$ * Households + 5.75E$10^{-5}$ * Median Income + $\epsilon$. 
+- **Scale-Location Plot**: There is some heteroscedasticity (increasing spread of residuals), but the large sample size mitigates its impact on inference, ensuring parameter estimates remain reliable.
 
+- **Residuals vs Leverage Plot**: A few high-leverage points are observed, but they have minimal impact due to the large number of observations, reducing the overall influence of these outliers.
 
-Each coefficient represents if one unit increase is made for that predictor variable with everything else held constant, that the median house value^0.22 will increase(+) or decrease(-) by that coefficient amount.  
+In summary, while minor assumption violations exist, the large sample size helps mitigate their effects, allowing the model to perform well overall.
 
-For example, what this means is that per one degree increase in longitude, housing price^0.22 will decrease by 0.829. 
-
-Or for an increase of 1 US Dollar in Median Income will increase median house value^0.22 by 5.75 * $10^{-5}$. 
-
-## 8.2 Residual Analysis on Final Model
-
-The residual plots demonstrate that there is still issues present in normality, linearity, and heteroscedasticity. No large influential points remain. 
-
-```{r residual analysis final}
-
-par(mfrow = c(2,2))
-plot(noinfpt_bc_model)
-
-```
-
-
-# 9 Conlusions and Discussion
-
-There was significant issues with residual assumptions as well that were partially rectified with modified transformation and removal of the outlier. Still, the violations for these residual assumptions are uncorrected. The inference is based on the central limit theorem given the large sample size of N = 20640. 
-
-One pressing concern is the troubling multicollinearity. That was not addressed in this report, and with the results seen in the final model, it largely reflects this as many of the coefficients were small. Going forward, it would have been wise to reduce this model. From a purely logical perspective, many pairs of variables are likely to be highly correlated: rooms and bedrooms; population and households could be easily be justified to be correlated in one way or another. 
-
-However, for the purposes of association, this report strongly demonstrates that all of these predictor variables affect the median house price in California. It doesn't serve as a good basis for prediction, especially considering its logarithmic transformation of the response variable. 
-
-Bootstrap methodology was only used partially. If it were used throughout the entire analysis and the model reduced to remove multicollinearity, the resultant model would perform substantially better than the final model here. 
-
-
-
-# References
-
-Wang, H.(2018). *housing.csv*[Data set]. https://www.kaggle.com/code/harrywang/housing-price-prediction/input?select=housing.csv
-
-
-O'Reilly Media (2017). *California Housing*. GitHub. https://github.com/ageron/handson-ml/blob/master/datasets/housing/housing.csv
-
-GPS coordinates, latitude and longitude with interactive maps. GPS coordinates, latitude and longitude with interactive Maps. (2023). https://www.gps-coordinates.net/ 
 
 
 
